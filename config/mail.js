@@ -12,9 +12,7 @@ const sendMail = async (to, subject, htmlMessage) => {
       subject,
       html: htmlMessage,
     };
-
     await sgMail.send(msg);
-    console.log(`✅ Email sent to ${to}`);
     return true;
   } catch (error) {
     console.error('❌ Error sending email:', error.response?.body || error.message);
