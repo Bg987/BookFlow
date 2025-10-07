@@ -3,18 +3,24 @@ const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
 const { sendMail } = require("../config/mail");
 const Library = require("../models/Library");
+const Username = require("../models/username");
 const Datastore = require("../utils/tempStore");
 
 require("dotenv").config();
 
 // Step 1: Pre-signup (send verification link)
 exports.preSignupLibrary = async (req, res) => {
+  //console.log(req.body);
   try {
     const { library_name, email, username, password, founded_year, latitude, longitude } = req.body;
 
     if (!library_name || !email || !username || !password || !founded_year || !latitude || !longitude) {
       return res.status(400).json({ message: "All fields are required" });
     }
+
+    const exists = await Username.findOne({ username });
+    if (exists)
+      return res.status(400).json({ message: "Username already taken. Please choose another." });
 
     const existing = await Library.findOne({ where: { email } });
     if (existing) {
@@ -40,7 +46,7 @@ exports.preSignupLibrary = async (req, res) => {
     // Generate verification token
     const token = jwt.sign({ lib_id }, process.env.JWT_SECRET, { expiresIn: "15m" });
     const verifyLink = `${process.env.FRONTEND_URL}/api/library/verify?token=${token}`;
-
+    console.log(token);
     // Email content
     const subject = "Verify your BookFlow Library Account";
     const message = `
@@ -51,7 +57,7 @@ exports.preSignupLibrary = async (req, res) => {
       <p>This link expires in 15 minutes.</p>`;
     const temp = await sendMail(email, subject, message);
     if (!temp) return res.status(500).json({ message: "error in email module" });
-    res.json({ message: "✅ Verification email sent! Please check your inbox." });
+    res.status(200).json({ message: "✅ Verification email sent! Please check your inbox. and redirect to login in 3 seconds" });
   } catch (error) {
     console.error("Error in preSignupLibrary:", error.message);
     res.status(500).json({ message: "Internal server error" });
@@ -68,9 +74,14 @@ exports.verifyLibrary = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const tempData = Datastore.getTempSignup(decoded.lib_id);
     if (!tempData) return res.status(400).json({ message: "Token expired or invalid" });
-
-    // Create the library in DB
-    // Create the library in DB
+    //insert into usernmae collection
+    await Username.create({
+      username: tempData.username,
+      role: "library",
+      referenceId: tempData.lib_id, // link to library in MySQL
+      email: tempData.email,
+    });
+    //insert all data into sql databse
 await Library.create({
   lib_id: tempData.lib_id,
   library_name: tempData.library_name, // or 'name' if your model uses 'name'

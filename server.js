@@ -2,7 +2,7 @@ const express = require('express');
 //const http = require('http');
 //const https = require('https');
 const cors = require('cors');
-const {testDBConnection} = require('./config/db');
+const {testDBConnection,connectMongoDB} = require('./config/db');
 require('dotenv').config();
 
 //const { initSocket } = require('./config/socket');
@@ -38,6 +38,7 @@ const PORT = process.env.PORT || 5000;
 // Initialize Socket.IO
 //initSocket(server);
 app.listen(PORT, async() => {
-   await testDBConnection();
+    await testDBConnection();
+    await connectMongoDB();
     console.log(`Server running on port ${PORT}`);
 });
