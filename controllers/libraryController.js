@@ -18,7 +18,24 @@ exports.preSignupLibrary = async (req, res) => {
     if (!library_name || !email || !username || !password || !founded_year || !latitude || !longitude) {
       return res.status(400).json({ message: "All fields are required" });
     }
+     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format." });
+    }
+    if (username === password) {
+      return res.status(400).json({ message: "Username and password cannot be the same." });
+    }
 
+    // Library name should not match username or password
+    if (library_name === username || library_name === password) {
+      return res.status(400).json({ message: "Library name cannot match username or password." });
+    }
+
+    // Founded year cannot be greater than current year
+    const currentYear = new Date().getFullYear();
+    if (parseInt(founded_year) > currentYear) {
+      return res.status(400).json({ message: "Founded year cannot be in the future." });
+    }
     const exists = await Username.findOne({ username });
     if (exists)
       return res.status(400).json({ message: "Username already taken. Please choose another." });
@@ -47,7 +64,6 @@ exports.preSignupLibrary = async (req, res) => {
     // Generate verification token
     const token = jwt.sign({ lib_id }, process.env.JWT_SECRET, { expiresIn: "15m" });
     const verifyLink = `${process.env.FRONTEND_URL}/api/library/verify?token=${token}`;
-    console.log(token);
     // Email content
     const subject = "Verify your BookFlow Library Account";
     const message = `
@@ -121,22 +137,12 @@ exports.libraryLogin = async (req, res) => {
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "24h" });
-    console.log(process.env.MODE === "local");
-if (process.env.MODE === "local") {
-  res.cookie("token", token, {
-                httpOnly: true,
-                maxAge: 36000 * 1000, // 10 hour
-                secure: false,
-                sameSite: "Strict"
-            });
-} else {
-  res.cookie("token", token, {
-                httpOnly: true,
-                sameSite: "None",
-                maxAge: 24000000 * 60 * 60 * 1000,
-                secure: true
-            });
-}
+res.cookie("token", token, {
+  httpOnly: true,        // JS cannot access it
+  secure: process.env.MODE !== "local",  // HTTPS required in production
+  sameSite: process.env.MODE !== "local" ? "None" : "Strict", // cross-site
+  maxAge: 24 * 60 * 60 * 1000, // 1 day
+});
 
     res.status(200).json({message :"succesfully login"});
   } catch (err) {

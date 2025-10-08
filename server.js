@@ -18,13 +18,16 @@ const libraryRoutes = require("./routes/libraryRoutes");
 const app = express();
 app.use(express.json());
 app.use(cookieparser());
-app.use(
-  cors({
-      origin: process.env.MODE === "local" ?
-          "http://localhost:3000" : "https://book-flow-frontend.vercel.app", // React frontend
-    credentials: true
-  })
-);
+const corsOptions = {
+  origin: process.env.MODE === "local" 
+    ? "http://localhost:3000" 
+    : "https://book-flow-frontend.vercel.app",
+  credentials: true, // important for cookies
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+};
+
+app.use(cors(corsOptions));
+
 
 // API Routes
 // app.use('/api/auth', authRoutes);
