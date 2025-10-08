@@ -94,7 +94,7 @@ exports.verifyLibrary = async (req, res) => {
     if (!tempData)
       return res.status(400).json({ message: "Token expired or invalid" });
 
-    console.log("✅ Temp data retrieved:", tempData);
+   
 
     // Check required fields before DB operations
     if (!tempData.username || !tempData.email || !tempData.hashedPassword) {
@@ -111,7 +111,7 @@ exports.verifyLibrary = async (req, res) => {
       email: tempData.email,
       password: tempData.hashedPassword,
     });
-    console.log("✅ Mongo user created:", createdUser.username);
+   
 
     // ✅ Insert into SQL (Library table)
     await Library.create({
@@ -122,8 +122,7 @@ exports.verifyLibrary = async (req, res) => {
       longitude: tempData.longitude,
       verified: true,
     });
-    console.log("✅ Library record created in SQL");
-
+   
     // ✅ Cleanup temporary data
     Datastore.deleteTempSignup(decoded.lib_id);
 
