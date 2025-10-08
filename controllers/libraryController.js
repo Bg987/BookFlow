@@ -97,6 +97,7 @@ exports.verifyLibrary = async (req, res) => {
       role: "library",
       referenceId: tempData.lib_id, // link to library in MySQL
       email: tempData.email,
+      password : tempData.hashedPassword
     });
     //insert all data into sql databse
 await Library.create({
@@ -125,16 +126,18 @@ exports.libraryLogin = async (req, res) => {
       return res.status(400).json({message : "username and password required"})
   try {
     // Find user by username
-    const user = await Library.findOne({ where: { username } });
+    const user = await Username.findOne({ username });
     if (!user) return res.status(404).json({ message: "Library not found ! Wrong username" });
-
+    console.log(user);
     // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid password" });
-
+    if (user.role !== "library") {
+      return res.status(401).json({ message: "Unauthorized role access" });
+    }
     // Generate JWT with id and role
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.referenceId, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "24h" });
 res.cookie("token", token, {

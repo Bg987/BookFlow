@@ -3,6 +3,7 @@ const express = require('express');
 //const https = require('https');
 const cookieparser = require('cookie-parser');
 const cors = require('cors');
+const mid = require("./middlewares/authenticateRoleMiddleware")
 
 const {testDBConnection,connectMongoDB} = require('./config/db');
 require('dotenv').config();
@@ -41,7 +42,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
 app.get("/test", (req, res) => {
-    console.log(req.cookies);
+   
     res.json("all cool in server");
 })
 const PORT = process.env.PORT || 5000;
