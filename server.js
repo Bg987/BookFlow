@@ -21,7 +21,7 @@ app.use(cookieparser());
 app.use(
   cors({
       origin: process.env.MODE === "local" ?
-          "http://localhost:3000" : "https://book-flow-frontend.vercel.app/", // React frontend
+          "http://localhost:3000" : "https://book-flow-frontend.vercel.app", // React frontend
     credentials: true
   })
 );
