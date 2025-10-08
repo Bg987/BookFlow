@@ -1,7 +1,9 @@
 const express = require('express');
 //const http = require('http');
 //const https = require('https');
+const cookieparser = require('cookie-parser');
 const cors = require('cors');
+
 const {testDBConnection,connectMongoDB} = require('./config/db');
 require('dotenv').config();
 
@@ -14,11 +16,16 @@ require('dotenv').config();
 const libraryRoutes = require("./routes/libraryRoutes");
 
 const app = express();
-app.use(cors());
 app.use(express.json());
-app.get("/x", (req, res) => {
-    res.json("hiiiii");
-})
+app.use(cookieparser());
+app.use(
+  cors({
+      origin: process.env.MODE === "local" ?
+          "http://localhost:3000" : "https://book-flow-frontend.vercel.app/", // React frontend
+    credentials: true
+  })
+);
+
 // API Routes
 // app.use('/api/auth', authRoutes);
 // app.use('/api/books', bookRoutes);
@@ -30,7 +37,10 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
-
+app.get("/test", (req, res) => {
+    console.log(req.cookies);
+    res.json("all cool in server");
+})
 const PORT = process.env.PORT || 5000;
 //const server = process.env.PORT === "local"?
 //                http.createServer(app):https.createServer(app);

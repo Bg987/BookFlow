@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const cookie = require("cookie-parser");
 const { v4: uuidv4 } = require("uuid");
 const { sendMail } = require("../config/mail");
 const Library = require("../models/Library");
@@ -55,8 +56,8 @@ exports.preSignupLibrary = async (req, res) => {
       <a href="${verifyLink}" target="_blank" 
          style="background:#4CAF50;color:white;padding:10px 15px;border-radius:5px;text-decoration:none;">Verify Account</a>
       <p>This link expires in 15 minutes.</p>`;
-    const temp = await sendMail(email, subject, message);
-    if (!temp) return res.status(500).json({ message: "error in email module" });
+   // const temp = await sendMail(email, subject, message);
+    //if (!temp) return res.status(500).json({ message: "error in email module" });
     res.status(200).json({ message: "✅ Verification email sent! Please check your inbox. and redirect to login in 3 seconds" });
   } catch (error) {
     console.error("Error in preSignupLibrary:", error.message);
@@ -100,5 +101,46 @@ await Library.create({
   } catch (error) {
     console.error("Verification failed:", error.message);
     res.status(400).json({ message: "Invalid or expired token" });
+  }
+};
+exports.libraryLogin = async (req, res) => {
+   const { username, password } = req.body;
+    if (!username || !password) 
+      return res.status(400).json({message : "username and password required"})
+  try {
+    // Find user by username
+    const user = await Library.findOne({ where: { username } });
+    if (!user) return res.status(404).json({ message: "Library not found ! Wrong username" });
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid password" });
+
+    // Generate JWT with id and role
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" });
+    console.log(process.env.MODE === "local");
+if (process.env.MODE === "local") {
+  res.cookie("token", token, {
+                httpOnly: true,
+                maxAge: 36000 * 1000, // 10 hour
+                secure: false,
+                sameSite: "Strict"
+            });
+} else {
+  res.cookie("token", token, {
+                httpOnly: true,
+                sameSite: "None",
+                maxAge: 24000000 * 60 * 60 * 1000,
+                secure: true
+            });
+}
+
+    res.status(200).json({message :"succesfully login"});
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };

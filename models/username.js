@@ -22,6 +22,7 @@ const usernameSchema = new mongoose.Schema({
   referenceId: {
     type: String,
     required: true,
+    unique: true,
   },
   createdAt: {
     type: Date,
