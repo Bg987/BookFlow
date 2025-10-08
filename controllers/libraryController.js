@@ -40,7 +40,7 @@ exports.preSignupLibrary = async (req, res) => {
     if (exists)
       return res.status(400).json({ message: "Username already taken. Please choose another." });
 
-    const existing = await Library.findOne({ where: { email } });
+    const existing = await Username.findOne({ email });
     if (existing) {
       return res.status(409).json({ message: "Email already registered" });
     }
@@ -65,6 +65,7 @@ exports.preSignupLibrary = async (req, res) => {
     const token = jwt.sign({ lib_id }, process.env.JWT_SECRET, { expiresIn: "15m" });
     const verifyLink = `${process.env.FRONTEND_URL}/api/library/verify?token=${token}`;
     // Email content
+    console.log("toekn = ", token);
     const subject = "Verify your BookFlow Library Account";
     const message = `
       <h2>Welcome to BookFlow 📚</h2>
@@ -72,8 +73,8 @@ exports.preSignupLibrary = async (req, res) => {
       <a href="${verifyLink}" target="_blank" 
          style="background:#4CAF50;color:white;padding:10px 15px;border-radius:5px;text-decoration:none;">Verify Account</a>
       <p>This link expires in 15 minutes.</p>`;
-   // const temp = await sendMail(email, subject, message);
-    //if (!temp) return res.status(500).json({ message: "error in email module" });
+    const temp = await sendMail(email, subject, message);
+    if (!temp) return res.status(500).json({ message: "error in email module" });
     res.status(200).json({ message: "✅ Verification email sent! Please check your inbox. and redirect to login in 3 seconds" });
   } catch (error) {
     console.error("Error in preSignupLibrary:", error.message);
@@ -87,39 +88,54 @@ exports.verifyLibrary = async (req, res) => {
     const { token } = req.query;
     if (!token) return res.status(400).json({ message: "Invalid token" });
 
-    // Verify JWT token
+    // Verify JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const tempData = Datastore.getTempSignup(decoded.lib_id);
-    if (!tempData) return res.status(400).json({ message: "Token expired or invalid" });
-    //insert into usernmae collection
-    await Username.create({
+    if (!tempData)
+      return res.status(400).json({ message: "Token expired or invalid" });
+
+    console.log("✅ Temp data retrieved:", tempData);
+
+    // Check required fields before DB operations
+    if (!tempData.username || !tempData.email || !tempData.hashedPassword) {
+      return res.status(400).json({
+        message: "Missing essential signup data. Please re-register.",
+      });
+    }
+
+    // ✅ Insert into MongoDB (Username collection)
+    const createdUser = await Username.create({
       username: tempData.username,
       role: "library",
-      referenceId: tempData.lib_id, // link to library in MySQL
+      referenceId: tempData.lib_id,
       email: tempData.email,
-      password : tempData.hashedPassword
+      password: tempData.hashedPassword,
     });
-    //insert all data into sql databse
-await Library.create({
-  lib_id: tempData.lib_id,
-  library_name: tempData.library_name, // or 'name' if your model uses 'name'
-  email: tempData.email,
-  username: tempData.username,
-  password: tempData.hashedPassword,
-  founded_year: tempData.founded_year,
-  latitude: tempData.latitude,
-  longitude: tempData.longitude,
-  verified: true, // mark verified after successful creation
-  created_at: new Date(), // <-- set current timestamp
-});
-    // Clear temporary data
+    console.log("✅ Mongo user created:", createdUser.username);
+
+    // ✅ Insert into SQL (Library table)
+    await Library.create({
+      lib_id: tempData.lib_id,
+      library_name: tempData.library_name,
+      founded_year: tempData.founded_year,
+      latitude: tempData.latitude,
+      longitude: tempData.longitude,
+      verified: true,
+    });
+    console.log("✅ Library record created in SQL");
+
+    // ✅ Cleanup temporary data
     Datastore.deleteTempSignup(decoded.lib_id);
-    res.status(200).json({ message: "🎉 Library account verified and created successfully!" });
+
+    return res.status(200).json({
+      message: "🎉 Library account verified and created successfully!",
+    });
   } catch (error) {
-    console.error("Verification failed:", error.message);
+    console.error("❌ Verification failed:", error);
     res.status(400).json({ message: "Invalid or expired token" });
   }
 };
+
 exports.libraryLogin = async (req, res) => {
    const { username, password } = req.body;
     if (!username || !password) 
@@ -128,7 +144,6 @@ exports.libraryLogin = async (req, res) => {
     // Find user by username
     const user = await Username.findOne({ username });
     if (!user) return res.status(404).json({ message: "Library not found ! Wrong username" });
-    console.log(user);
     // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid password" });

@@ -9,7 +9,8 @@ const authenticateRole = (...allowedRoles) => {
 
       // Verify JWT
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const { id, role } = decoded;
+    const { id, role } = decoded;
+        console.log(decoded);    
       // Check if role is allowed
       if (!allowedRoles.includes(role)) {
         return res.status(403).json({ message: "Access denied: insufficient permissions" });
