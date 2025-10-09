@@ -10,8 +10,7 @@ const authenticateRole = (...allowedRoles) => {
       // Verify JWT
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { id, role } = decoded;
-        console.log(decoded);    
-      // Check if role is allowed
+          // Check if role is allowed
       if (!allowedRoles.includes(role)) {
         return res.status(403).json({ message: "Access denied: insufficient permissions" });
       }
@@ -19,7 +18,6 @@ const authenticateRole = (...allowedRoles) => {
       // Check user exists in DB by referenceId
       const user = await Username.findOne({ referenceId: id });
       if (!user) return res.status(404).json({ message: "User not found" });
-
       req.user = user; // attach user document to request
       next();
     } catch (err) {

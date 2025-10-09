@@ -161,9 +161,26 @@ res.cookie("token", token, {
   maxAge: 24 * 60 * 60 * 1000, // 1 day
 });
 
-    res.status(200).json({message :"succesfully login"});
+    res.status(200).json({message :"succesfully login redirect to dashboard"});
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getLibraryData = async (req, res) => {
+  try {
+    const lib_id = req.user.referenceId;
+    const data = await Library.findAll({where: { lib_id },});
+    if (data.length > 1) {
+      return res.status(404).json({ message: "serious error contact developer" });
+    }
+    if (!data || data.length === 0) {
+      return res.status(404).json({ message: "No library data " });
+    }
+    res.status(200).json({ data });
+  } catch (error) {
+    console.error("Error fetching library data:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };

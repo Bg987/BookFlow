@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { preSignupLibrary, verifyLibrary,libraryLogin } = require("../controllers/libraryController");
+const AuthRolemiddleware= require("../middlewares/authenticateRoleMiddleware");
+const controller = require("../controllers/libraryController");
 
-router.post("/pre-signup", preSignupLibrary);
-router.get("/verify", verifyLibrary);
-router.post("/login", libraryLogin);
+router.post("/pre-signup", controller.preSignupLibrary);
+router.get("/verify", controller.verifyLibrary);
+router.post("/login", controller.libraryLogin);
+router.get("/libdata", AuthRolemiddleware("library"), controller.getLibraryData);
 module.exports = router;
