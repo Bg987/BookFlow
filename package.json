@@ -12,9 +12,12 @@
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
     "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "fetch": "^1.1.0",

@@ -6,6 +6,8 @@ const { sendMail } = require("../config/mail");
 const Library = require("../models/Library");
 const Username = require("../models/username");
 const Datastore = require("../utils/tempStore");
+const {getVerificationEmail} = require("../utils/EmailsTemplate");
+
 
 require("dotenv").config();
 
@@ -65,16 +67,9 @@ exports.preSignupLibrary = async (req, res) => {
     const token = jwt.sign({ lib_id }, process.env.JWT_SECRET, { expiresIn: "15m" });
     const verifyLink = `${process.env.FRONTEND_URL}/api/library/verify?token=${token}`;
     // Email content
-    console.log("toekn = ", token);
     const subject = "Verify your BookFlow Library Account";
-    const message = `
-      <h2>Welcome to BookFlow 📚</h2>
-      <p>Click the button below to verify your account:</p>
-      <a href="${verifyLink}" target="_blank" 
-         style="background:#4CAF50;color:white;padding:10px 15px;border-radius:5px;text-decoration:none;">Verify Account</a>
-      <p>This link expires in 15 minutes.</p>`;
-    const temp = await sendMail(email, subject, message);
-    if (!temp) return res.status(500).json({ message: "error in email module" });
+    //const temp = await sendMail(email, subject, getVerificationEmail(verifyLink));
+   // if (!temp) return res.status(500).json({ message: "error in email module" });
     res.status(200).json({ message: "✅ Verification email sent! Please check your inbox. and redirect to login in 3 seconds" });
   } catch (error) {
     console.error("Error in preSignupLibrary:", error.message);

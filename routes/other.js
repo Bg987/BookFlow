@@ -1,13 +1,8 @@
 const express = require("express");
+const { logout,ForgotPassword,ResetPassword } = require("../controllers/other");
 const router = express.Router();
 
-router.post("/logout", (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: process.env.MODE !== "local",        // HTTPS in prod
-    sameSite: process.env.MODE !== "local" ? "None" : "Strict", // match original cookie
-  });
-  res.status(200).json({ message: "Logged out successfully" });
-});
-
+router.post("/logout", logout);
+router.post("/forgotPass", ForgotPassword);
+router.post("/resetPass",ResetPassword);
 module.exports = router;
