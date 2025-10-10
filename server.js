@@ -15,6 +15,7 @@ require('dotenv').config();
 // const issueRoutes = require('./routes/issueRoutes');
 // const memberRoutes = require('./routes/memberRoutes');
 const libraryRoutes = require("./routes/libraryRoutes");
+const librarianRoutes = require("./routes/librarianRoutes");
 const otherRoutes = require("./routes/other");
 
 const app = express();
@@ -32,11 +33,12 @@ app.use(cors(corsOptions));
 
 
 // API Routes
-// app.use('/api/auth', authRoutes);
+
 // app.use('/api/books', bookRoutes);
 // app.use('/api/issues', issueRoutes);
 // app.use('/api/members', memberRoutes);
 app.use("/api/library", libraryRoutes);
+app.use("/api/librarian", librarianRoutes);
 app.use("/api", otherRoutes);
 // Error handler
 app.use((err, req, res, next) => {
