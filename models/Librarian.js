@@ -20,10 +20,6 @@ const Librarian = sequelize.define(
       type: DataTypes.DATEONLY,
       allowNull: false,
     },
-    experience: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
     profile_pic: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -45,6 +41,6 @@ const Librarian = sequelize.define(
     tableName: "Librarians",
     timestamps: false,
   }
-);
+);4444444444
 
 module.exports = Librarian;

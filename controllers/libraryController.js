@@ -6,7 +6,7 @@ const { sendMail } = require("../config/mail");
 const Library = require("../models/Library");
 const Username = require("../models/username");
 const Datastore = require("../utils/tempStore");
-const {getVerificationEmail} = require("../utils/EmailsTemplate");
+const {getVerificationEmail,AccountverifiedLibrary,} = require("../utils/EmailsTemplate");
 
 
 require("dotenv").config();
@@ -65,9 +65,10 @@ exports.preSignupLibrary = async (req, res) => {
 
     // Generate verification token
     const token = jwt.sign({ lib_id }, process.env.JWT_SECRET, { expiresIn: "15m" });
-    const verifyLink = `${process.env.FRONTEND_URL}/api/library/verify?token=${token}`;
+    const verifyLink = `${process.env.BACKEND_URL}/api/library/verify?token=${token}`;
     // Email content
     const subject = "Verify your BookFlow Library Account";
+    console.log(getVerificationEmail(verifyLink));
     //const temp = await sendMail(email, subject, getVerificationEmail(verifyLink));
    // if (!temp) return res.status(500).json({ message: "error in email module" });
     res.status(200).json({ message: "✅ Verification email sent! Please check your inbox. and redirect to login in 3 seconds" });
@@ -120,10 +121,7 @@ exports.verifyLibrary = async (req, res) => {
    
     // ✅ Cleanup temporary data
     Datastore.deleteTempSignup(decoded.lib_id);
-
-    return res.status(200).json({
-      message: "🎉 Library account verified and created successfully!",
-    });
+      return res.send(AccountverifiedLibrary());
   } catch (error) {
     console.error("❌ Verification failed:", error);
     res.status(400).json({ message: "Invalid or expired token" });

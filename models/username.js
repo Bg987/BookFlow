@@ -27,9 +27,12 @@ const usernameSchema = new mongoose.Schema({
     unique: true,
   },
   // Fields for password reset
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
-
+  tempToken: String,
+  tokenExpire: Date,
+  profilePicUrl: {
+    type: String,
+    default : null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

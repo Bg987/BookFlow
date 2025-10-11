@@ -3,86 +3,152 @@ const bcrypt = require("bcrypt");
 const cloudinary = require("../config/cloudinary");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
-const { sendEmail } = require("../config/mail");
-const { addLibrarianEmail } = require("../utils/EmailsTemplate");
+const { sendMail } = require("../config/mail");
+const stream = require("stream");
+const {addLibrarianEmail,LibrarianVerifiedHTML} = require("../utils/EmailsTemplate");
 
 exports.addLibrarian = async (req, res) => {
-    try {
-        const lib_id = req.user.referenceId; // library referenceId from middleware
-    const { name, dob, email, username, experience } = req.body;
-        const profilePic = req.file;
-    if (!name || !dob || !email || !username || !experience || !profilePic) {
+  let Uid;
+  try {
+    const lib_id = req.user.referenceId; // library referenceId from middleware
+    const { name, dob, email, username } = req.body;
+    const profilePic = req.file;
+
+    // Basic validation
+    if (!name || !dob || !email || !username || !profilePic) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    // Check username and email
+    const usernameExists = await Username.findOne({ username });
+    if (usernameExists)
+      return res.status(400).json({
+        message: "Username already taken. Please choose another.",
+      });
+
+    const emailExists = await Username.findOne({ email });
+    if (emailExists)
+      return res.status(409).json({ message: "Email already registered" });
+
+    // Generate credentials and unique IDs
     const randomPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
     const uniqueId = uuidv4();
+    Uid = uniqueId;
+    // Verification token setup
+    const verificationToken = uuidv4();
+    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
+    // Step 1: Insert into MongoDB
+    const newUser = await Username.create({
+      username,
+      email,
+      password: hashedPassword,
+      role: "librarian",
+      referenceId: uniqueId,
+      tempToken: verificationToken,
+      tokenExpire: verificationExpire,
+    });
+    // Step 2: Insert into SQL
+    const newLibrarian = await Librarian.create({
+      librarian_id: uniqueId,
+      lib_id,
+      name,
+      dob,
+      is_verified: false,
+    });
+
+    // Step 3: Upload to Cloudinary AFTER both DBs succeed
     const uploadFromBuffer = (fileBuffer) =>
       new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { public_id: `librarian_${uuidv4()}`, folder: "BookFlow/Profile_Picture/librarians" },
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            public_id: `librarian_${uuidv4()}`,
+            folder: "BookFlow/Profile_Pictures/librarians",
+          },
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
           }
         );
 
-        const bufferStream = require("stream").PassThrough();
+        const bufferStream = new stream.PassThrough();
         bufferStream.end(fileBuffer);
-        bufferStream.pipe(stream);
+        bufferStream.pipe(uploadStream);
       });
 
-    const result = await uploadFromBuffer(req.file.buffer);
-
+    const result = await uploadFromBuffer(profilePic.buffer);
     const profilePicUrl = result.secure_url;
-        console.log(profilePicUrl);
-    // Create MongoDB entry
-    const newUser = await Username.create({
-      username,
-      email,
-      password: hashedPassword,
-      role: "librarian",
-    referenceId : uniqueId,
-    });
 
-    // Generate verification token
-    const verificationToken = uuidv4();
-    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h expiry
+    newUser.profilePicUrl = profilePicUrl;
+    await newUser.save();
 
-    // Create SQL entry
-    const newLibrarian = await Librarian.create({
-      librarian_id: uniqueId,
-      lib_id,
-      name,
-      dob,
-      experience,
-      is_verified: false,
-      verification_token: verificationToken,
-      verification_token_expire: verificationExpire,
-    });
-
-    const verifyLink = `${process.env.FRONTEND_URL}/verify-librarian?token=${verificationToken}`;
-
-    // Send email
-    // await sendEmail({
-    //   to: email,
-    //   subject: "BookFlow Librarian Account Created",
-    //   html: addLibrarianEmail({
-    //     name,
-    //     username,
-    //     password: randomPassword,
-    //     verifyLink,
-    //   }),
-    // });
-
+    const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${verificationToken}`;
+    const subject = "BookFlow Librarian Account Created";
+    const mailData = addLibrarianEmail(name, username, randomPassword, verifyLink);
+    console.log(mailData);
+    //const x = await sendMail(email, subject, mailData);
+    // if (!x) {
+    //   throw new Error("error in email!");
+    // }
     res.status(201).json({
-      message: "Librarian added successfully, email sent for verification",
-      data: newLibrarian,
+      message:
+        "Librarian added successfully,Verification Email send successfully",
     });
   } catch (error) {
-    console.error("Error adding librarian:", error);
+    if (Uid) {
+      try {
+        // Delete from MongoDB
+        await Username.deleteOne({ referenceId: Uid });
+        // Delete from SQL
+        await Librarian.destroy({ where: { librarian_id: Uid } });
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+    }
+    console.log("error in librarien ",error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+exports.verifyLibrarian = async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ message: "Invalid verification link" });
+    }
+
+    // Find the user by token
+    const user = await Username.findOne({ tempToken: token });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    // Check if token is expired
+    if (user.tokenExpire < new Date()) {
+      return res
+        .status(400)
+        .json({ message: "Verification token has expired" });
+    }
+
+    // Update MongoDB: mark email as verified
+    user.tempToken = null;
+    user.tokenExpire = null;
+    await user.save();
+
+    // Update SQL: mark librarian as verified
+    await Librarian.update(
+      { is_verified: true },
+      { where: { librarian_id: user.referenceId } }
+    );
+
+    // Redirect or send success response
+    res.send(LibrarianVerifiedHTML());
+  } catch (error) {
+    console.error("Error verifying librarian:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

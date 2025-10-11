@@ -44,7 +44,7 @@ const Library = sequelize.define(
     },
   },
   {
-    tableName: "Libraries",
+   tableName: "Libraries",
     timestamps: false, // since we’re using created_at manually
   }
 );

@@ -23,13 +23,13 @@ exports.ForgotPassword = async (req, res) => {
       const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
     // Set token and expiration (15 minutes)
-    user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+    user.tempToken = hashedToken;
+    user.tokenExpire = Date.now() + 15 * 60 * 1000;
     await user.save();
-    const rLink = `${process.env.FRONTEND_URL2}/resetPass?token=${resetToken}`;
+    const rLink = `${process.env.FRONTEND_URL}/resetPass?token=${resetToken}`;
     const subject = "BookFlow Account Password Reset Link";
-    const temp = await sendMail(user.email, subject, resetPassEmail(rLink));
-    if (!temp) return res.status(500).json({ message: "error in email module" });
+    //const temp = await sendMail(user.email, subject, resetPassEmail(rLink));
+    //if (!temp) return res.status(500).json({ message: "error in email module" });
     res.status(200).json({message: "Password Reset Link Send to Email",data: user});
   } catch (error) {
     console.error("Error in forgotPassword:", error);
@@ -60,8 +60,8 @@ exports.ResetPassword = async (req, res) => {
     user.password = await bcrypt.hash(newPassword, 10);
 
     // Clear reset token fields
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    user.tempToken = undefined;
+    user.tokenExpire = undefined;
     await user.save();
     res.status(200).json({ message: "Password reset successful" });
   } catch (error) {
