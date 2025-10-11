@@ -28,6 +28,7 @@ exports.ForgotPassword = async (req, res) => {
     await user.save();
     const rLink = `${process.env.FRONTEND_URL}/resetPass?token=${resetToken}`;
     const subject = "BookFlow Account Password Reset Link";
+    console.log(resetPassEmail(rLink));  
     //const temp = await sendMail(user.email, subject, resetPassEmail(rLink));
     //if (!temp) return res.status(500).json({ message: "error in email module" });
     res.status(200).json({message: "Password Reset Link Send to Email",data: user});
