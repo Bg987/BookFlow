@@ -49,8 +49,8 @@ exports.ResetPassword = async (req, res) => {
     // Hash token to compare with DB
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
     const user = await Username.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() }, // Token not expired
+      tempToken: hashedToken,
+      tokenExpire: { $gt: Date.now() }, // Token not expired
     });
 
     if (!user) {
