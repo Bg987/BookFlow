@@ -34,6 +34,7 @@ export const AccountverifiedLibrary = () => {
       </html>
     `;
 };
+//library account verification
 export const getVerificationEmail = (verifyLink) => {
   return `
     <div style="font-family: Arial, sans-serif; text-align: center; background-color: #f8f9fa; padding: 20px;">
@@ -229,3 +230,4 @@ export const LibrarianVerifiedHTML = () => {
     </html>
   `;
 };
+

@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const cloudinary = require("../config/cloudinary");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
+const Library = require("../models/Library");
 const { sendMail } = require("../config/mail");
 const stream = require("stream");
 const {addLibrarianEmail,LibrarianVerifiedHTML} = require("../utils/EmailsTemplate");
@@ -59,29 +60,29 @@ exports.addLibrarian = async (req, res) => {
     });
 
     // Step 3: Upload to Cloudinary AFTER both DBs succeed
-    const uploadFromBuffer = (fileBuffer) =>
-      new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            public_id: `librarian_${uuidv4()}`,
-            folder: "BookFlow/Profile_Pictures/librarians",
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
+    // const uploadFromBuffer = (fileBuffer) =>
+    //   new Promise((resolve, reject) => {
+    //     const uploadStream = cloudinary.uploader.upload_stream(
+    //       {
+    //         public_id: `librarian_${uuidv4()}`,
+    //         folder: "BookFlow/Profile_Pictures/librarians",
+    //       },
+    //       (error, result) => {
+    //         if (error) reject(error);
+    //         else resolve(result);
+    //       }
+    //     );
 
-        const bufferStream = new stream.PassThrough();
-        bufferStream.end(fileBuffer);
-        bufferStream.pipe(uploadStream);
-      });
+    //     const bufferStream = new stream.PassThrough();
+    //     bufferStream.end(fileBuffer);
+    //     bufferStream.pipe(uploadStream);
+    //   });
 
-    const result = await uploadFromBuffer(profilePic.buffer);
-    const profilePicUrl = result.secure_url;
+    // const result = await uploadFromBuffer(profilePic.buffer);
+    // const profilePicUrl = result.secure_url;
 
-    newUser.profilePicUrl = profilePicUrl;
-    await newUser.save();
+    // newUser.profilePicUrl = profilePicUrl;
+    // await newUser.save();
 
     const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${verificationToken}`;
     const subject = "BookFlow Librarian Account Created";
@@ -144,8 +145,22 @@ exports.verifyLibrarian = async (req, res) => {
       { is_verified: true },
       { where: { librarian_id: user.referenceId } }
     );
-
-    // Redirect or send success response
+    //find librarian's library id
+    const tempLibId = await Librarian.findOne({
+      attributes: ["lib_id"],
+      where: {
+        librarian_id: user.referenceId,
+      },
+    });
+    if (!tempLibId) {
+      return res.status(404).json({ message: "Library not found" });
+    }
+    console.log(tempLibId.dataValues.lib_id);
+    //increamnet that library's librarian count as librarian verify account
+    await Library.increment("total_librarians", {
+      by: 1,
+      where: { lib_id: tempLibId.dataValues.lib_id },
+    });
     res.send(LibrarianVerifiedHTML());
   } catch (error) {
     console.error("Error verifying librarian:", error);

@@ -41,6 +41,6 @@ const Librarian = sequelize.define(
     tableName: "Librarians",
     timestamps: false,
   }
-);4444444444
+);
 
 module.exports = Librarian;

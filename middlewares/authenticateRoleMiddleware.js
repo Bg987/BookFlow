@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const Username = require("../models/username"); // your Mongoose model
+const Username = require("../models/username"); 
 
 const authenticateRole = (...allowedRoles) => {
   return async (req, res, next) => {
@@ -21,7 +21,7 @@ const authenticateRole = (...allowedRoles) => {
       req.user = user; // attach user document to request
       next();
     } catch (err) {
-      console.error(err);
+      //console.error(err);
       res.status(401).json({ message: "Invalid or expired token" });
     }
   };
