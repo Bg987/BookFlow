@@ -1,11 +1,12 @@
 const Username = require("../models/username");
+const Library = require("../models/Library");
 const { sendMail } = require("../config/mail");
 const { resetPassEmail } = require("../utils/EmailsTemplate");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 
-exports.ForgotPassword = async (req, res) => { 
-    try {
+exports.ForgotPassword = async (req, res) => {
+  try {
     const { identifier } = req.body; // username or email
 
     if (!identifier) {
@@ -17,10 +18,13 @@ exports.ForgotPassword = async (req, res) => {
     });
 
     if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      const resetToken = crypto.randomBytes(20).toString("hex");
-      const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+      return res.status(404).json({ message: "User not found" });
+    }
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
     // Set token and expiration (15 minutes)
     user.tempToken = hashedToken;
@@ -28,24 +32,27 @@ exports.ForgotPassword = async (req, res) => {
     await user.save();
     const rLink = `${process.env.FRONTEND_URL}/resetPass?token=${resetToken}`;
     const subject = "BookFlow Account Password Reset Link";
-    console.log(resetPassEmail(rLink));  
+    console.log(resetPassEmail(rLink));
     //const temp = await sendMail(user.email, subject, resetPassEmail(rLink));
     //if (!temp) return res.status(500).json({ message: "error in email module" });
-    res.status(200).json({message: "Password Reset Link Send to Email",data: user});
+    res
+      .status(200)
+      .json({ message: "Password Reset Link Send to Email", data: user });
   } catch (error) {
     console.error("Error in forgotPassword:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};
 
 exports.ResetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;//resettoken
+    const { token, newPassword } = req.body; //resettoken
 
     if (!token || !newPassword) {
-      return res.status(400).json({ message: "Token and new password are required" });
+      return res
+        .status(400)
+        .json({ message: "Token and new password are required" });
     }
-
     // Hash token to compare with DB
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
     const user = await Username.findOne({
@@ -55,12 +62,32 @@ exports.ResetPassword = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ message: "Invalid or expired token" });
+    }//common validation 
+    if (user.username === newPassword) {
+      return res
+        .status(400)
+        .json({ message: "Username and password cannot be the same." });
+    }//role specific validation
+    if (user.role === "library") {
+      const tempLibId = await Library.findOne({
+        //find library name
+        attributes: ["library_name"],
+        where: {
+          lib_id: user.referenceId,
+        },
+      });    
+      if (tempLibId.dataValues.library_name === newPassword) {
+         return res
+           .status(400)
+           .json({
+             message: "Library name cannot match new password.",
+           });
+      }
     }
-
     // Hash new password and save
     user.password = await bcrypt.hash(newPassword, 10);
 
-    // Clear reset token fields
+    // Clear reset token fields4
     user.tempToken = undefined;
     user.tokenExpire = undefined;
     await user.save();
@@ -71,12 +98,11 @@ exports.ResetPassword = async (req, res) => {
   }
 };
 
-exports.logout = async (req, res) => { 
-    res.clearCookie("token", {
+exports.logout = async (req, res) => {
+  res.clearCookie("token", {
     httpOnly: true,
-    secure: process.env.MODE !== "local",        // HTTPS in prod
+    secure: process.env.MODE !== "local", // HTTPS in prod
     sameSite: process.env.MODE !== "local" ? "None" : "Strict", // match original cookie
   });
   res.status(200).json({ message: "Logged out successfully" });
-}
-
+};
