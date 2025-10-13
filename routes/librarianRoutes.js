@@ -1,10 +1,12 @@
 const express = require("express");
 const upload = require("../config/multer");
 const router = express.Router();
-const AuthRolemiddleware= require("../middlewares/authenticateRoleMiddleware");
+const authenticateRole = require("../middlewares/authenticateRoleMiddleware");
 const controller = require("../controllers/librarian");
 
-router.post("/AddLibrarian", AuthRolemiddleware("library"), upload.single("profilePic"), controller.addLibrarian);
+router.post("/AddLibrarian", authenticateRole("library"), upload.single("profilePic"), controller.addLibrarian);
 router.get("/verify-librarian", controller.verifyLibrarian);
+router.post("/LoginLibrarian", controller.LoginLibrarian);
+router.get("/getLibrarian",authenticateRole("librarian"),controller.Librariandata);
 
 module.exports = router;

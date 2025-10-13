@@ -1,8 +1,9 @@
 const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcrypt");
-const cloudinary = require("../config/cloudinary");
+const uploadToCloudinary = require("../config/cloudinary");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
+const { handleLogin } = require("../utils/logincommon");
 const Library = require("../models/Library");
 const { sendMail } = require("../config/mail");
 const stream = require("stream");
@@ -59,30 +60,13 @@ exports.addLibrarian = async (req, res) => {
       is_verified: false,
     });
 
-    // Step 3: Upload to Cloudinary AFTER both DBs succeed
-    // const uploadFromBuffer = (fileBuffer) =>
-    //   new Promise((resolve, reject) => {
-    //     const uploadStream = cloudinary.uploader.upload_stream(
-    //       {
-    //         public_id: `librarian_${uuidv4()}`,
-    //         folder: "BookFlow/Profile_Pictures/librarians",
-    //       },
-    //       (error, result) => {
-    //         if (error) reject(error);
-    //         else resolve(result);
-    //       }
-    //     );
-
-    //     const bufferStream = new stream.PassThrough();
-    //     bufferStream.end(fileBuffer);
-    //     bufferStream.pipe(uploadStream);
-    //   });
-
-    // const result = await uploadFromBuffer(profilePic.buffer);
-    // const profilePicUrl = result.secure_url;
-
-    // newUser.profilePicUrl = profilePicUrl;
-    // await newUser.save();
+    const profilePicUrl = await uploadToCloudinary(
+      profilePic.buffer,
+      "BookFlow/Profile_Pictures/librarians",
+      "librarian_"
+    );
+    newUser.profilePicUrl = profilePicUrl;
+    await newUser.save();
 
     const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${verificationToken}`;
     const subject = "BookFlow Librarian Account Created";
@@ -166,4 +150,49 @@ exports.verifyLibrarian = async (req, res) => {
     console.error("Error verifying librarian:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
+};
+
+exports.LoginLibrarian = async(req, res) => {
+  await handleLogin({role : "librarian",req, res,});
+}
+
+exports.Librariandata = async (req, res) => {
+  try {
+    const librarian_data = await Librarian.findOne({
+      where: { librarian_id: req.user.referenceId },
+    });
+    const library_data = await Library.findOne({
+      where: { lib_id: librarian_data.lib_id },
+    });
+    const userData = req.user;
+    const Data = {
+      profile: {
+        username: userData.username,
+        email: userData.email,
+        role: userData.role,
+        profilePicUrl: userData.profilePicUrl,
+      },
+      librarian: {
+        name: librarian_data.name,
+        dob: librarian_data.dob,
+        verified: librarian_data.is_verified,
+      },
+      library: {
+        name: library_data.library_name,
+        foundedYear: library_data.founded_year,
+        latitude: library_data.latitude,
+        longitude: library_data.longitude,
+        verified: library_data.verified,
+        totalMembers: library_data.total_members,
+        totalBooks: library_data.total_books,
+        totalLibrarians: library_data.total_librarians,
+      },
+    };
+    res.status(200).json({ Data});
+  }
+  catch (error) {
+    console.log(error);
+    res.status(500).json({ error });
+  }
+  
 };

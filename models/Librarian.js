@@ -20,21 +20,9 @@ const Librarian = sequelize.define(
       type: DataTypes.DATEONLY,
       allowNull: false,
     },
-    profile_pic: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
     is_verified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
-    },
-    verification_token: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    verification_token_expire: {
-      type: DataTypes.DATE,
-      allowNull: true,
     },
   },
   {
