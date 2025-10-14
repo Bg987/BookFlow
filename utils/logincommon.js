@@ -37,7 +37,7 @@ exports.handleLogin = async ({req, res,role }) => {
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    return res.status(200).json({ message: `Successfully logged in` });
+    return res.status(200).json({ message: `Successfully logged in redirect to ${user.role} dashboard ` });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Server error" });

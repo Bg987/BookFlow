@@ -6,6 +6,7 @@ const Librarian = require("../models/Librarian");
 const { handleLogin } = require("../utils/logincommon");
 const Library = require("../models/Library");
 const { sendMail } = require("../config/mail");
+const { getSignedUrl } = require("../config/cloudinary");
 const stream = require("stream");
 const {addLibrarianEmail,LibrarianVerifiedHTML} = require("../utils/EmailsTemplate");
 
@@ -159,40 +160,39 @@ exports.LoginLibrarian = async(req, res) => {
 exports.Librariandata = async (req, res) => {
   try {
     const librarian_data = await Librarian.findOne({
-      where: { librarian_id: req.user.referenceId },
+      where: { librarian_id: req.user.referenceId }, //librarin data from sql
     });
     const library_data = await Library.findOne({
+      //librariy data from sql
       where: { lib_id: librarian_data.lib_id },
     });
-    const userData = req.user;
-    const Data = {
-      profile: {
-        username: userData.username,
-        email: userData.email,
-        role: userData.role,
-        profilePicUrl: userData.profilePicUrl,
-      },
-      librarian: {
-        name: librarian_data.name,
-        dob: librarian_data.dob,
-        verified: librarian_data.is_verified,
-      },
-      library: {
-        name: library_data.library_name,
-        foundedYear: library_data.founded_year,
-        latitude: library_data.latitude,
-        longitude: library_data.longitude,
-        verified: library_data.verified,
-        totalMembers: library_data.total_members,
-        totalBooks: library_data.total_books,
-        totalLibrarians: library_data.total_librarians,
-      },
+    //remove all the id's and password
+    userData = req.user;
+    userData._id = null;
+    userData.password = null;
+    userData.referenceId=null;
+    const cleanedLibrarian = { ...librarian_data.dataValues };
+    const cleanedLibrary = { ...library_data.dataValues };
+    delete cleanedLibrarian.lib_id;
+    delete cleanedLibrarian.librarian_id;
+    delete cleanedLibrary.lib_id;
+    console.log(userData);
+    //parse public id from full URL
+    const fullUrl = userData.profilePicUrl;
+    const urlParts = fullUrl.split("/upload/");
+    const publicIdWithVersion = urlParts[1]; 
+    const publicId = publicIdWithVersion.replace(/^v\d+\//, ""); // remove version
+    userData.profilePicUrl = getSignedUrl(publicId);
+    const FinalData = {
+      library_data: cleanedLibrary,
+      librarian_data: cleanedLibrarian,
+      userData,
     };
-    res.status(200).json({ Data});
+    console.log(userData);
+    res.status(200).json({ Data:  FinalData});
   }
   catch (error) {
     console.log(error);
     res.status(500).json({ error });
   }
-  
 };

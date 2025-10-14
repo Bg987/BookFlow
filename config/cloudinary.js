@@ -35,6 +35,9 @@ const uploadToCloudinary = async (fileBuffer, folder, prefix = "file_") => {
   });
 };
 
-module.exports = uploadToCloudinary;
+const getSignedUrl = (publicId) => {
+  return cloudinary.url(publicId, { sign_url: true});
+};
+module.exports = { uploadToCloudinary, getSignedUrl };
 
 

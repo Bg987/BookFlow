@@ -37,7 +37,7 @@ exports.ForgotPassword = async (req, res) => {
     //if (!temp) return res.status(500).json({ message: "error in email module" });
     res
       .status(200)
-      .json({ message: "Password Reset Link Send to Email", data: user });
+      .json({ message: "Password Reset Link Send to Email" });
   } catch (error) {
     console.error("Error in forgotPassword:", error);
     res.status(500).json({ message: "Internal Server Error" });
