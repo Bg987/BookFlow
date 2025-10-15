@@ -176,7 +176,6 @@ exports.Librariandata = async (req, res) => {
     delete cleanedLibrarian.lib_id;
     delete cleanedLibrarian.librarian_id;
     delete cleanedLibrary.lib_id;
-    console.log(userData);
     //parse public id from full URL
     const fullUrl = userData.profilePicUrl;
     const urlParts = fullUrl.split("/upload/");
@@ -188,7 +187,7 @@ exports.Librariandata = async (req, res) => {
       librarian_data: cleanedLibrarian,
       userData,
     };
-    console.log(userData);
+
     res.status(200).json({ Data:  FinalData});
   }
   catch (error) {
