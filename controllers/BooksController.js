@@ -1,45 +1,116 @@
 const axios = require("axios");
+const Book = require("../models/Book");
+const cloudinary = require("../config/cloudinary"); // cloudinary setup
 
-exports.getBookByISBN = async (req, res) => {
+// Fetch book details from Open Library API by ISBN
+exports.fetchBookByISBN = async (req, res) => {
   const { isbn } = req.params;
-
-  if (!isbn) return res.status(400).json({ message: "ISBN is required" });
-
+    console.log(isbn);
   try {
     const response = await axios.get(
-      `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
-    );
+      `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`
+      );
       console.log(response);
-    const data = response.data;
-
-    if (!data.items || data.items.length === 0) {
+    const data = response.data[`ISBN:${isbn}`];
+    if (!data) {
       return res
         .status(404)
-        .json({ message: "Book not found in Google Books" });
+        .json({ success: false, message: "Book not found in Open Library" });
     }
 
-    const book = data.items[0].volumeInfo;
-
-    const result = {
+    const bookData = {
       isbn,
-      title: book.title || "",
-      authors: book.authors || [],
-      publishers: book.publisher ? [book.publisher] : [],
-      publish_places: [], // Google Books doesn’t provide this
-      publish_date: book.publishedDate || "",
-      number_of_pages: book.pageCount || 0,
-      subjects: book.categories || [],
+      title: data.title || "",
+      authors: data.authors?.map((a) => a.name) || [],
+      publishers: data.publishers?.map((p) => p.name) || [],
+      publish_places: data.publish_places?.map((p) => p.name) || [],
+      publish_date: data.publish_date || "",
+      number_of_pages: data.number_of_pages || 0,
+      subjects: data.subjects?.map((s) => s.name) || [],
+      subject_places: data.subject_places?.map((s) => s.name) || [],
       cover: {
-        small: book.imageLinks?.small || "",
-        medium: book.imageLinks?.medium || "",
-        large: book.imageLinks?.large || "",
+        medium: data.cover?.medium || "",
       },
-      description: book.description || "",
+      description: data.notes || "",
     };
 
-    res.status(200).json({ data: result });
+    res.json({ success: true, data: bookData });
   } catch (err) {
-    console.error("Google Books API error:", err.message);
-    res.status(500).json({ message: "Failed to fetch book data" });
+    console.error(err);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch book data" });
+  }
+};
+
+// Save book to MongoDB (with copies, library id and optional cover upload)
+exports.addBook = async (req, res) => {
+  try {
+    const {
+      isbn,
+      title,
+      authors,
+      publishers,
+      publish_places,
+      publish_date,
+      number_of_pages,
+      subjects,
+      subject_places,
+      description,
+      copies,
+      library_id,
+    } = req.body;
+
+    let cover = {};
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "BookFlow/Books",
+      });
+      cover.medium = result.secure_url;
+    }
+
+    // Check if book exists for same library
+    let book = await Book.findOne({ isbn, library_id });
+
+    if (book) {
+      // If exists, update copies and cover/description if provided
+      book.copies += Number(copies || 0);
+      if (cover.medium) book.cover = cover;
+      if (description) book.description = description;
+      await book.save();
+      return res.json({
+        success: true,
+        message: "Book updated successfully",
+        book,
+      });
+    }
+
+    // Create new book
+    const newBook = new Book({
+      isbn,
+      title,
+      authors,
+      publishers,
+      publish_places,
+      publish_date,
+      number_of_pages,
+      subjects,
+      subject_places,
+      description,
+      copies,
+      cover,
+      library_id,
+    });
+
+    await newBook.save();
+
+    res.json({
+      success: true,
+      message: "Book added successfully",
+      book: newBook,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Failed to add book" });
   }
 };
