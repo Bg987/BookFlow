@@ -8,7 +8,7 @@ exports.fetchBookByISBN = async (req, res) => {
     console.log(isbn);
   try {
     const response = await axios.get(
-      `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`
+      `https://openlibrary.org/api/books?bibkeys=ISBN${isbn}&format=json&jscmd=data`
       );
       console.log(response);
     const data = response.data[`ISBN:${isbn}`];

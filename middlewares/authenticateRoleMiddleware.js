@@ -3,9 +3,9 @@ const Username = require("../models/username");
 
 const authenticateRole = (...allowedRoles) => {
   return async (req, res, next) => {
+     console.log(req);
     try {
       const token = req.cookies?.token;
-
       if (!token) {
         return res
           .status(401)

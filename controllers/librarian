@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcrypt");
-const uploadToCloudinary = require("../config/cloudinary");
+const {uploadToCloudinary} = require("../config/cloudinary");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
 const { handleLogin } = require("../utils/logincommon");

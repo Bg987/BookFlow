@@ -32,11 +32,11 @@ exports.handleLogin = async ({req, res,role }) => {
     // Send token as cookie
     res.cookie("token", token, {
       httpOnly: true,
+      path : "/",
       secure: process.env.MODE !== "local",
       sameSite: process.env.MODE !== "local" ? "None" : "Strict",
       maxAge: 24 * 60 * 60 * 1000,
     });
-
     return res.status(200).json({ message: `Successfully logged in redirect to ${user.role} dashboard ` });
   } catch (err) {
     console.error(err);
