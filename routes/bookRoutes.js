@@ -9,7 +9,7 @@ const authenticateRole = require("../middlewares/authenticateRoleMiddleware");
 router.get(
   "/fetchByISBN/:isbn",
   authenticateRole("librarian"),
-  booksController.getBookByISBN
+  booksController.fetchBookByISBN
 );
 // Add a book (optional file upload for cover)
 //router.post("/addBook", authenticateRole("librarian"),upload.single("cover"), booksController.addBook);
