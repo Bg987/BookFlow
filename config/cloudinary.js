@@ -17,7 +17,6 @@ cloudinary.config({
  * @returns {Promise<string>} - Resolves with the secure URL of the uploaded image.
  */
 const uploadToCloudinary = async (fileBuffer, folder, prefix = "file_") => {
-  console.log(fileBuffer);
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {

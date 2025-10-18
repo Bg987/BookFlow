@@ -21,7 +21,10 @@ exports.addLibrarian = async (req, res) => {
     if (!name || !dob || !email || !username || !profilePic) {
       return res.status(400).json({ message: "All fields are required" });
     }
-
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format." });
+    }
     // Check username and email
     const usernameExists = await Username.findOne({ username });
     if (usernameExists)
