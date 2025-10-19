@@ -26,14 +26,20 @@ const authenticateRole = (...allowedRoles) => {
       if (!user) {
         return res.status(404).json({ message: "User not found." });
       }
-
-      // Double-check DB role if needed (optional if token role is trusted)
+      // Double-check DB role 
       if (!allowedRoles.includes(user.role)) {
         return res
           .status(403)
           .json({ message: "Access denied: role mismatch with database." });
       }
-
+      if (!user.is_verified) {
+        return res
+          .status(403)
+          .json({
+            message:
+              "Your account is not verified. First logout then check your email to verify your account.",
+          });
+      }
       req.user = user; // attach user document to request
       next();
     } catch (err) {

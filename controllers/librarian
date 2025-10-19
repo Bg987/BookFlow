@@ -61,7 +61,6 @@ exports.addLibrarian = async (req, res) => {
       lib_id,
       name,
       dob,
-      is_verified: false,
     });
 
     const profilePicUrl = await uploadToCloudinary(
@@ -76,10 +75,10 @@ exports.addLibrarian = async (req, res) => {
     const subject = "BookFlow Librarian Account Created";
     const mailData = addLibrarianEmail(name, username, randomPassword, verifyLink);
     console.log(mailData);
-    //const x = await sendMail(email, subject, mailData);
-    // if (!x) {
-    //   throw new Error("error in email!");
-    // }
+    const x = await sendMail(email, subject, mailData);
+    if (!x) {
+      throw new Error("error in email!");
+    }
     res.status(201).json({
       message:
         "Librarian added successfully,Verification Email send successfully",
@@ -120,19 +119,17 @@ exports.verifyLibrarian = async (req, res) => {
     if (user.tokenExpire < new Date()) {
       return res
         .status(400)
-        .json({ message: "Verification token has expired" });
+        .json({
+          message:
+            "Your verification token has expired. Please contact the library to re-register your account.",
+        });
     }
 
     // Update MongoDB: mark email as verified
     user.tempToken = null;
     user.tokenExpire = null;
+    user.is_verified=true;
     await user.save();
-
-    // Update SQL: mark librarian as verified
-    await Librarian.update(
-      { is_verified: true },
-      { where: { librarian_id: user.referenceId } }
-    );
     //find librarian's library id
     const tempLibId = await Librarian.findOne({
       attributes: ["lib_id"],

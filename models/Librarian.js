@@ -20,10 +20,6 @@ const Librarian = sequelize.define(
       type: DataTypes.DATEONLY,
       allowNull: false,
     },
-    is_verified: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
-    },
   },
   {
     tableName: "Librarians",

@@ -15,8 +15,8 @@ const {
 require("dotenv").config();
 
 // Step 1: Pre-signup (send verification link)
-exports.preSignupLibrary = async (req, res) => {
-  //console.log(req.body);
+exports.addLibrary = async (req, res) => {
+  let Uid;
   try {
     const {
       library_name,
@@ -28,6 +28,7 @@ exports.preSignupLibrary = async (req, res) => {
       longitude,
     } = req.body;
 
+
     if (
       !library_name ||
       !email ||
@@ -35,129 +36,128 @@ exports.preSignupLibrary = async (req, res) => {
       !password ||
       !founded_year ||
       !latitude ||
-      !longitude
+      !longitude 
     ) {
       return res.status(400).json({ message: "All fields are required" });
     }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format." });
     }
-    if (username === password) {
+
+    const existingUsername = await Username.findOne({ username });
+    if (existingUsername)
       return res
         .status(400)
-        .json({ message: "Username and password cannot be the same." });
-    }
+        .json({ message: "Username already taken. Please choose another." });
 
-    // Library name should not match username or password
-    if (library_name === username || library_name === password) {
-      return res
-        .status(400)
-        .json({ message: "Library name cannot match username or password." });
-    }
+    const existingEmail = await Username.findOne({ email });
+    if (existingEmail)
+      return res.status(409).json({ message: "Email already registered." });
 
-    // Founded year cannot be greater than current year
+    // Basic logic check
     const currentYear = new Date().getFullYear();
     if (parseInt(founded_year) > currentYear) {
       return res
         .status(400)
         .json({ message: "Founded year cannot be in the future." });
     }
-    const exists = await Username.findOne({ username });
-    if (exists)
-      return res
-        .status(400)
-        .json({ message: "Username already taken. Please choose another." });
 
-    const existing = await Username.findOne({ email });
-    if (existing) {
-      return res.status(409).json({ message: "Email already registered" });
-    }
-
-    const lib_id = uuidv4();
     const hashedPassword = await bcrypt.hash(password, 10);
+    const uniqueId = uuidv4();
+    Uid = uniqueId;
 
-    // Temporarily store signup data until verification
-    const tempData = {
-      lib_id,
-      library_name,
-      email,
+    // Generate verification token
+    const verificationToken = uuidv4();
+    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000 * 15); // 15 days
+
+    // Step 1: Create in MongoDB (User collection)
+    const newUser = await Username.create({
       username,
-      hashedPassword,
+      email,
+      password: hashedPassword,
+      role: "library",
+      referenceId: uniqueId,
+      tempToken: verificationToken,
+      tokenExpire: verificationExpire,
+    });
+
+    // Step 2: Create in SQL
+    const newLibrary = await Library.create({
+      lib_id: uniqueId,
+      library_name,
       founded_year,
       latitude,
       longitude,
-    };
-    Datastore.saveTempSignup(lib_id, tempData);
-
-    // Generate verification token
-    const token = jwt.sign({ lib_id }, process.env.JWT_SECRET, {
-      expiresIn: "15m",
     });
-    const verifyLink = `${process.env.BACKEND_URL}/api/library/verify?token=${token}`;
-    // Email content
-    const subject = "Verify your BookFlow Library Account";
-    console.log(getVerificationEmail(verifyLink));
-    //const temp = await sendMail(email, subject, getVerificationEmail(verifyLink));
-    // if (!temp) return res.status(500).json({ message: "error in email module" });
-    res
-      .status(200)
-      .json({
-        message:
-          "Verification email sent! Please check your inbox. and redirect to login in 3 seconds",
+
+    // Step 4: Send verification email
+    const verifyLink = `${process.env.BACKEND_URL}/api/library/verify?token=${verificationToken}`;
+    const subject = "BookFlow Library Account Created";
+    const mailBody = getVerificationEmail(verifyLink);
+    console.log(mailBody);
+    //const resMail = await sendMail(email, subject, mailBody);
+    // if (!resMail) {
+    //   throw new Error("email error");
+    // }
+      res.status(201).json({
+        message: "Library created successfully. Verification email sent.",
       });
   } catch (error) {
-    console.error("Error in preSignupLibrary:", error.message);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error adding library:", error);
+
+    if (Uid) {
+      try {
+        await Username.deleteOne({ referenceId: Uid });
+        await Library.destroy({ where: { lib_id: Uid } });
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+    }
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 // Step 2: Verify signup (final creation)
 exports.verifyLibrary = async (req, res) => {
   try {
     const { token } = req.query;
-    if (!token) return res.status(400).json({ message: "Invalid token" });
 
-    // Verify JWT
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const tempData = Datastore.getTempSignup(decoded.lib_id);
-    if (!tempData)
-      return res.status(400).json({ message: "Token expired or invalid" });
-
-    // Check required fields before DB operations
-    if (!tempData.username || !tempData.email || !tempData.hashedPassword) {
-      return res.status(400).json({
-        message: "Missing essential signup data. Please re-register.",
-      });
+    if (!token) {
+      return res.status(400).json({ message: "Invalid verification link" });
     }
 
-    //  Insert into MongoDB (Username collection)
-    const createdUser = await Username.create({
-      username: tempData.username,
-      role: "library",
-      referenceId: tempData.lib_id,
-      email: tempData.email,
-      password: tempData.hashedPassword,
-    });
+    // Find user by token
+    const user = await Username.findOne({ tempToken: token });
 
-    // Insert into SQL (Library table)
-    await Library.create({
-      lib_id: tempData.lib_id,
-      library_name: tempData.library_name,
-      founded_year: tempData.founded_year,
-      latitude: tempData.latitude,
-      longitude: tempData.longitude,
-      verified: true,
-    });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
 
-    // Cleanup temporary data
-    Datastore.deleteTempSignup(decoded.lib_id);
-    return res.send(AccountverifiedLibrary());
+    // Check expiry
+    if (user.tokenExpire < new Date()) {
+      return res
+        .status(400)
+        .json({
+          message: "Verification token has expired. Please register Library again.",
+        });
+    }
+
+    // Verify and activate
+    user.tempToken = null;
+    user.tokenExpire = null;
+    user.is_verified = true;
+    await user.save();
+
+    res.send(AccountverifiedLibrary()); // HTML page for success
   } catch (error) {
-    console.error("❌ Verification failed:", error);
-    res.status(400).json({ message: "Invalid or expired token" });
+    console.error("Error verifying library:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 exports.libraryLogin = async (req, res) => {
   await handleLogin({role :"library",req, res,});

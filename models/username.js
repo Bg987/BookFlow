@@ -31,7 +31,11 @@ const usernameSchema = new mongoose.Schema({
   tokenExpire: Date,
   profilePicUrl: {
     type: String,
-    default : null,
+    default: null,
+  },
+  is_verified: {
+    type: Boolean,
+    default: false, // default value for existing users
   },
   createdAt: {
     type: Date,

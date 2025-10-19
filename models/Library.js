@@ -25,11 +25,6 @@ const Library = sequelize.define(
       type: DataTypes.DECIMAL(10, 7),
       allowNull: false,
     },
-      verified: {
-        field : "is_verified",
-      type: DataTypes.BOOLEAN,
-      defaultValue: false, // set false until email verified
-    },
     total_members: {
       type: DataTypes.INTEGER,
       defaultValue: 0,

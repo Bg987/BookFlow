@@ -55,7 +55,7 @@ export const getVerificationEmail = (verifyLink) => {
       </a>
 
       <p style="font-size: 14px; color: #777;">
-        This link expires in 15 minutes.
+        This link expires in 15 days.
       </p>
     </div>
   `;
@@ -168,7 +168,7 @@ export const addLibrarianEmail = (name, username, password, verifyLink) => {
 
         <a href="${verifyLink}" class="button">Verify My Account</a>
 
-        <p>Here are your login credentials (please change your password after first login):</p>
+        <p>Here are your login credentials:</p>
 
         <div class="credentials">
           <p><strong>Username:</strong> ${username}</p>
@@ -176,7 +176,7 @@ export const addLibrarianEmail = (name, username, password, verifyLink) => {
         </div>
 
         <p>
-          This verification link will expire in 24 hours.
+          This verification link will expire in 15 days.
 After verification, you can change your password by simply clicking on “Forgot Password” and entering your username or email to set a new password.
 If you did not request this account, please ignore this email.
         </p>

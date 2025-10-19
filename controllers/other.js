@@ -20,13 +20,21 @@ exports.ForgotPassword = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    if (!user.is_verified) {
+      return res
+        .status(403)
+        .json({
+          message:
+            "Account not verified. Please verify your account using the link sent to your email.",
+        });
+    }
     const resetToken = crypto.randomBytes(20).toString("hex");
     const hashedToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
 
-    // Set token and expiration (15 minutes)
+    //token and expiration (15 minutes)
     user.tempToken = hashedToken;
     user.tokenExpire = Date.now() + 15 * 60 * 1000;
     await user.save();
