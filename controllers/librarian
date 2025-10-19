@@ -75,10 +75,10 @@ exports.addLibrarian = async (req, res) => {
     const subject = "BookFlow Librarian Account Created";
     const mailData = addLibrarianEmail(name, username, randomPassword, verifyLink);
     console.log(mailData);
-    const x = await sendMail(email, subject, mailData);
-    if (!x) {
-      throw new Error("error in email!");
-    }
+    // const x = await sendMail(email, subject, mailData);
+    // if (!x) {
+    //   throw new Error("error in email!");
+    // }
     res.status(201).json({
       message:
         "Librarian added successfully,Verification Email send successfully",
