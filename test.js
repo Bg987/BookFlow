@@ -1,6 +1,6 @@
 const sgMail = require('@sendgrid/mail')
 sgMail.setApiKey(
-  "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");
+  "");
 // sgMail.setDataResidency('eu');
 // uncomment the above line if you are sending mail using a regional EU subuser
 
