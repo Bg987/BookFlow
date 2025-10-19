@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const BookSchema = new mongoose.Schema(
   {
     book_id: { type: String, required: true },
+    librarian_id: { type: String, required: true },
     library_id: { type: String, required: true }, // reference to library
     isbn: {
       type: String,

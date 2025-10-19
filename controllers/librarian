@@ -43,7 +43,7 @@ exports.addLibrarian = async (req, res) => {
     Uid = uniqueId;
     // Verification token setup
     const verificationToken = uuidv4();
-    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000*15); // 15 days days
 
     // Step 1: Insert into MongoDB
     const newUser = await Username.create({
@@ -113,7 +113,7 @@ exports.verifyLibrarian = async (req, res) => {
     const user = await Username.findOne({ tempToken: token });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid or expired token" });
+      return res.status(400).json({ message: "Invalid token" });
     }
 
     // Check if token is expired
@@ -143,7 +143,6 @@ exports.verifyLibrarian = async (req, res) => {
     if (!tempLibId) {
       return res.status(404).json({ message: "Library not found" });
     }
-    console.log(tempLibId.dataValues.lib_id);
     //increamnet that library's librarian count as librarian verify account
     await Library.increment("total_librarians", {
       by: 1,

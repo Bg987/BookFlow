@@ -23,7 +23,6 @@ exports.addBook = async (req, res) => {
       isbn,
     } = req.body;
 
-    // Validate required fields (excluding ISBN, edition, publish_date)
     if (
       !title ||
       !authors ||
@@ -52,7 +51,7 @@ exports.addBook = async (req, res) => {
     if (parseInt(publish_date) > currentYear) {
       return res
         .status(400)
-        .json({ message: "Founded year cannot be in the future." });
+        .json({ message: "Published year cannot be in the future." });
     }
     // Validate that a file was uploaded
     if (!req.file) {
@@ -60,6 +59,7 @@ exports.addBook = async (req, res) => {
     }
 
     const cover = req.file;
+    //retrieve library_id  of librarian
     const LibId = await Librarian.findOne({
       attributes: ["lib_id"],
       where: {
@@ -107,7 +107,8 @@ exports.addBook = async (req, res) => {
     id = uuidv4();
     // Create and save the new book
     const newBook = new Book({
-      book_id : id,
+      librarian_id: req.user.referenceId,
+      book_id: id,
       title,
       authors: authorsArray,
       publishers,
@@ -136,7 +137,7 @@ exports.addBook = async (req, res) => {
     console.error(error);
       try {
         // Delete from MongoDB
-        //rollabck if uncertainty happen
+        //rollabck if uncertain condition happen happen
         await Book.deleteOne({ book_id: id });
       } catch (rollbackError) {
         console.error("Rollback failed:", rollbackError);

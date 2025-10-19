@@ -164,7 +164,7 @@ export const addLibrarianEmail = (name, username, password, verifyLink) => {
           Your <strong>Librarian</strong> account has been created successfully in
           <strong>BookFlow</strong>.
         </p>
-        <p>Please verify your email address to activate your account.</p>
+        <p>Please verify your email address to activate your account(valid for 15 days).</p>
 
         <a href="${verifyLink}" class="button">Verify My Account</a>
 
