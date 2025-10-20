@@ -1,4 +1,3 @@
-const cron = require("node-cron");
 const { Op } = require("sequelize");
 const mongoose = require("mongoose");
 const Username = require("../models/username"); // Mongoose model
@@ -10,7 +9,6 @@ console.log("Cron job module loaded");
 
 
 async function runCleanupJob() {
-  cron.schedule("0 0 0 * * *", async () => {
     console.log("Running cleanup job...");
 
     try {
@@ -75,7 +73,6 @@ async function runCleanupJob() {
     } catch (error) {
       console.error(" Error during cleanup job:", error.message);
     }
-  });
 }
 
 module.exports = runCleanupJob;
