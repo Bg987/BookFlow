@@ -6,7 +6,7 @@ const { sendMail } = require("../config/mail");
 const { handleLogin } = require("../utils/logincommon");
 const Library = require("../models/Library");
 const Username = require("../models/username");
-const Datastore = require("../utils/tempStore");
+
 const {
   getVerificationEmail,
   AccountverifiedLibrary,
@@ -69,7 +69,7 @@ exports.addLibrary = async (req, res) => {
     Uid = uniqueId;
 
     // Generate verification token
-    const verificationToken = uuidv4();
+    const verificationToken = uuidv4();//
     const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000 * 15); // 15 days
 
     // Step 1: Create in MongoDB (User collection)

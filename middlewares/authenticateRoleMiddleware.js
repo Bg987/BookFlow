@@ -37,7 +37,7 @@ const authenticateRole = (...allowedRoles) => {
           .status(403)
           .json({
             message:
-              "Your account is not verified. First logout then check your email to verify your account.",
+              "Your account is not verified.check your email to verify your account.",
           });
       }
       req.user = user; // attach user document to request

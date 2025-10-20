@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
 
+
 const {testDBConnection,connectMongoDB} = require('./config/db');
 require('dotenv').config();
 
@@ -61,5 +62,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, async() => {
     await testDBConnection();
     await connectMongoDB();
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+  require("./utils/cronJobs");
 });
