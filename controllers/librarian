@@ -42,8 +42,8 @@ exports.addLibrarian = async (req, res) => {
     const uniqueId = uuidv4();
     Uid = uniqueId;
     // Verification token setup
-    const verificationToken = uuidv4();
-    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000*15); // 15 days days
+    const verificationToken = uuidv4();//24 * 60 * 60 * 1000*15
+    const verificationExpire = new Date(Date.now() + 1000*15); // 15 days days
 
     // Step 1: Insert into MongoDB
     const newUser = await Username.create({

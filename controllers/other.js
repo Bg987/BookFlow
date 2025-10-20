@@ -2,8 +2,11 @@ const Username = require("../models/username");
 const Library = require("../models/Library");
 const { sendMail } = require("../config/mail");
 const { resetPassEmail } = require("../utils/EmailsTemplate");
+const runCleanupJob = require("../utils/cronJobs");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+
+const CRON_KEY = process.env.CRON_KEY || "my-secret-key";
 
 exports.ForgotPassword = async (req, res) => {
   try {
@@ -106,11 +109,24 @@ exports.ResetPassword = async (req, res) => {
   }
 };
 
+exports.cleanData = async (req, res) => {
+  if (req.query.key !== CRON_KEY) {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    await runCleanupJob();
+    res.send("Cleanup job executed successfully.");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Cleanup job failed.");
+  }
+}
 exports.logout = async (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: process.env.MODE !== "local", // HTTPS in prod
-    sameSite: process.env.MODE !== "local" ? "None" : "Strict", // match original cookie
-  });
-  res.status(200).json({ message: "Logged out successfully" });
-};
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.MODE !== "local", // HTTPS in prod
+      sameSite: process.env.MODE !== "local" ? "None" : "Strict", // match original cookie
+    });
+    res.status(200).json({ message: "Logged out successfully" });
+  }
+

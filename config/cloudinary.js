@@ -1,3 +1,4 @@
+require("dotenv").config();
 const cloudinary = require("cloudinary").v2;
 const { v4: uuidv4 } = require("uuid");
 const stream = require("stream");
@@ -36,6 +37,6 @@ const uploadToCloudinary = async (fileBuffer, folder, prefix = "file_") => {
 };
 
 const getSignedUrl = (publicId) => {
-  return cloudinary.url(publicId, { sign_url: true});
+  return cloudinary.url(publicId, { sign_url: true });
 };
-module.exports = { uploadToCloudinary, getSignedUrl };
+module.exports = { uploadToCloudinary, getSignedUrl, cloudinary };

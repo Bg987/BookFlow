@@ -20,4 +20,24 @@
 //   .catch((error) => {
 //     console.error(error)
 //   })
+const { cloudinary } = require("./config/cloudinary");
 
+// Example URL
+const imageUrl =
+  "https://res.cloudinary.com/ddlyq5ies/image/upload/v1760984817/BookFlow/Profile_Pictures/librarians/librarian_07cde39c-fd1d-4389-b5b3-c2fc870dbec5.png";
+
+// Extract publicId
+const urlParts = imageUrl.split("/upload/");
+const pathWithVersion = urlParts[1];
+const publicId = pathWithVersion
+  .replace(/^v\d+\//, "")
+  .replace(/\.[^/.]+$/, "");
+
+(async () => {
+  try {
+    const result = await cloudinary.uploader.destroy(publicId);
+    console.log("Deleted Cloudinary image:", result);
+  } catch (error) {
+    console.error("Error deleting Cloudinary image:", error);
+  }
+})();

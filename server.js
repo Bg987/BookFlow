@@ -44,6 +44,7 @@ app.use("/api/library", libraryRoutes);
 app.use("/api/librarian", librarianRoutes);
 app.use("/api/book", bookRoutes);
 app.use("/api", otherRoutes);
+
 // Error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -63,5 +64,4 @@ app.listen(PORT, async() => {
     await testDBConnection();
     await connectMongoDB();
   console.log(`Server running on port ${PORT}`);
-  require("./utils/cronJobs");
 });
