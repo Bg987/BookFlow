@@ -6,11 +6,11 @@ const Librarian = require("../models/Librarian"); // Sequelize model
 const Library = require("../models/Library"); // Sequelize model
 const cloudinary = require("../config/cloudinary"); // your cloudinary config
 
-console.log("🟢 Cron job module loaded");
+console.log("Cron job module loaded");
 
 // Run every 5 seconds for testing; change to "0 0 * * *" for production
 cron.schedule("0 0 * * * *", async () => {
-  console.log("🕛 Running cleanup job...");
+  console.log("Running cleanup job...");
 
   try {
     const now = new Date();
@@ -37,9 +37,9 @@ cron.schedule("0 0 * * * *", async () => {
             .replace(/^v\d+\//, "")
             .replace(/\.[^/.]+$/, "");
           await cloudinary.uploader.destroy(publicId);
-          console.log(`🗑️ Deleted Cloudinary image: ${user.profilePicUrl}`);
+          console.log(`Deleted Cloudinary image: ${user.profilePicUrl}`);
         } catch (cloudErr) {
-          console.error("❌ Cloudinary delete error:", cloudErr.message);
+          console.error("Cloudinary delete error:", cloudErr.message);
         }
       }
     }
@@ -63,16 +63,16 @@ cron.schedule("0 0 * * * *", async () => {
         librarian_id: { [Op.notIn]: refIds.length ? refIds : ["dummy"] },
       },
     });
-    console.log(`👨‍🏫 Deleted ${deletedLibrarians} orphan librarians from SQL`);
+    console.log(` Deleted ${deletedLibrarians} orphan librarians from SQL`);
     //  Delete orphaned libraries
     const deletedLibs = await Library.destroy({
       where: { lib_id: { [Op.notIn]: refIds.length ? refIds : ["dummy"] } },
     });
-    console.log(`🏛️ Deleted ${deletedLibs} orphan libraries from SQL`);
+    console.log(` Deleted ${deletedLibs} orphan libraries from SQL`);
 
-    console.log("✅ Cleanup completed successfully.\n");
+    console.log("Cleanup completed successfully.\n");
   } catch (error) {
-      console.error("❌ Error during cleanup job:", error.message);
+      console.error(" Error during cleanup job:", error.message);
       
   }
 });
