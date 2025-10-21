@@ -4,6 +4,7 @@ const cookie = require("cookie-parser");
 const { v4: uuidv4 } = require("uuid");
 const { sendMail } = require("../config/mail");
 const { handleLogin } = require("../utils/logincommon");
+const { handleVerify } = require("../utils/verifyCommon");
 const Library = require("../models/Library");
 const Username = require("../models/username");
 
@@ -27,8 +28,6 @@ exports.addLibrary = async (req, res) => {
       latitude,
       longitude,
     } = req.body;
-
-
     if (
       !library_name ||
       !email ||
@@ -36,16 +35,53 @@ exports.addLibrary = async (req, res) => {
       !password ||
       !founded_year ||
       !latitude ||
-      !longitude 
+      !longitude
     ) {
       return res.status(400).json({ message: "All fields are required" });
     }
-
+    // validation
+    const currentYear = new Date().getFullYear();
+    if (parseInt(founded_year) > currentYear) {
+      return res
+        .status(400)
+        .json({ message: "Founded year cannot be in the future." });
+    }
+    const usernameRegex = /^[A-Za-z0-9_]+$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({
+        message: "Username must contain only letters, numbers, or underscores.",
+      });
+    }
+    const passwordLower = password.toLowerCase();
+    if (
+      passwordLower === username.toLowerCase() ||
+      passwordLower === library_name.toLowerCase() ||
+      passwordLower === email.toLowerCase().split("@")[0] ||
+      passwordLower === email
+    ) {
+      return res.status(400).json({
+        message:
+          "Password must not be the same as your username, library name, or email.",
+      });
+    }
+    if (
+      isNaN(latitude) ||
+      isNaN(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return res.status(400).json({
+        message:
+          "Invalid coordinates. Latitude must be between -90 and 90, and longitude between -180 and 180.",
+      });
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format." });
     }
-
+    //database validations
     const existingUsername = await Username.findOne({ username });
     if (existingUsername)
       return res
@@ -55,21 +91,12 @@ exports.addLibrary = async (req, res) => {
     const existingEmail = await Username.findOne({ email });
     if (existingEmail)
       return res.status(409).json({ message: "Email already registered." });
-
-    // Basic logic check
-    const currentYear = new Date().getFullYear();
-    if (parseInt(founded_year) > currentYear) {
-      return res
-        .status(400)
-        .json({ message: "Founded year cannot be in the future." });
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const uniqueId = uuidv4();
     Uid = uniqueId;
 
     // Generate verification token
-    const verificationToken = uuidv4();//
+    const verificationToken = uuidv4(); //
     const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000 * 15); // 15 days
 
     // Step 1: Create in MongoDB (User collection)
@@ -101,9 +128,9 @@ exports.addLibrary = async (req, res) => {
     // if (!resMail) {
     //   throw new Error("email error");
     // }
-      res.status(201).json({
-        message: "Library created successfully. Verification email sent.",
-      });
+    res.status(201).json({
+      message: "Library created successfully. Verification email sent.",
+    });
   } catch (error) {
     console.error("Error adding library:", error);
 
@@ -124,34 +151,10 @@ exports.addLibrary = async (req, res) => {
 exports.verifyLibrary = async (req, res) => {
   try {
     const { token } = req.query;
-
-    if (!token) {
-      return res.status(400).json({ message: "Invalid verification link" });
+    const reseVerify = await handleVerify({ req, res, token, });
+    if (reseVerify) {
+      res.send(AccountverifiedLibrary());
     }
-
-    // Find user by token
-    const user = await Username.findOne({ tempToken: token });
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid or expired token" });
-    }
-
-    // Check expiry
-    if (user.tokenExpire < new Date()) {
-      return res
-        .status(400)
-        .json({
-          message: "Verification token has expired. Please register Library again.",
-        });
-    }
-
-    // Verify and activate
-    user.tempToken = null;
-    user.tokenExpire = null;
-    user.is_verified = true;
-    await user.save();
-
-    res.send(AccountverifiedLibrary()); // HTML page for success
   } catch (error) {
     console.error("Error verifying library:", error);
     res.status(500).json({ message: "Internal Server Error" });

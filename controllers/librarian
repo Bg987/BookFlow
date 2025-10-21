@@ -1,13 +1,14 @@
 const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcrypt");
+const stream = require("stream");
 const {uploadToCloudinary} = require("../config/cloudinary");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
-const { handleLogin } = require("../utils/logincommon");
 const Library = require("../models/Library");
+const { handleLogin } = require("../utils/logincommon");
+const { handleVerify } = require("../utils/verifyCommon");
 const { sendMail } = require("../config/mail");
 const { getSignedUrl } = require("../config/cloudinary");
-const stream = require("stream");
 const {addLibrarianEmail,LibrarianVerifiedHTML} = require("../utils/EmailsTemplate");
 
 exports.addLibrarian = async (req, res) => {
@@ -21,11 +22,36 @@ exports.addLibrarian = async (req, res) => {
     if (!name || !dob || !email || !username || !profilePic) {
       return res.status(400).json({ message: "All fields are required" });
     }
+    const nameRegex = /^[A-Za-z\s]{2,}$/;
+    if (!nameRegex.test(name)) {
+      return res.status(400).json({
+        message:
+          "Name should contain only letters and spaces (minimum 2 characters).",
+      });
+    }
+
+    const dateOfBirth = new Date(dob);
+    const today = new Date();
+    if (isNaN(dateOfBirth.getTime())) {
+      return res.status(400).json({ message: "Invalid date of birth format." });
+    }
+    if (dateOfBirth > today) {
+      return res
+        .status(400)
+        .json({ message: "Date of birth cannot be in the future." });
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format." });
     }
-    // Check username and email
+    const usernameRegex = /^[A-Za-z0-9_]+$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({
+        message:
+          "Username must contain only letters, numbers, or underscores.",
+      });
+    }
+    // database validation
     const usernameExists = await Username.findOne({ username });
     if (usernameExists)
       return res.status(400).json({
@@ -42,8 +68,8 @@ exports.addLibrarian = async (req, res) => {
     const uniqueId = uuidv4();
     Uid = uniqueId;
     // Verification token setup
-    const verificationToken = uuidv4();//24 * 60 * 60 * 1000*15
-    const verificationExpire = new Date(Date.now() + 1000*15); // 15 days days
+    const verificationToken = uuidv4();
+    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000 * 15); // 15 days days
 
     // Step 1: Insert into MongoDB
     const newUser = await Username.create({
@@ -103,33 +129,11 @@ exports.addLibrarian = async (req, res) => {
 exports.verifyLibrarian = async (req, res) => {
   try {
     const { token } = req.query;
-
-    if (!token) {
-      return res.status(400).json({ message: "Invalid verification link" });
-    }
-
-    // Find the user by token
     const user = await Username.findOne({ tempToken: token });
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid token" });
+    const resVerify = await handleVerify({ req, res, token});
+    if (!resVerify) {
+      return;
     }
-
-    // Check if token is expired
-    if (user.tokenExpire < new Date()) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Your verification token has expired. Please contact the library to re-register your account.",
-        });
-    }
-
-    // Update MongoDB: mark email as verified
-    user.tempToken = null;
-    user.tokenExpire = null;
-    user.is_verified=true;
-    await user.save();
     //find librarian's library id
     const tempLibId = await Librarian.findOne({
       attributes: ["lib_id"],

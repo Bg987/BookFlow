@@ -11,7 +11,6 @@ const CRON_KEY = process.env.CRON_KEY || "my-secret-key";
 exports.ForgotPassword = async (req, res) => {
   try {
     const { identifier } = req.body; // username or email
-
     if (!identifier) {
       return res.status(400).json({ message: "Username or email is required" });
     }
