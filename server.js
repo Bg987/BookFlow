@@ -50,10 +50,9 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
-// app.get("/test",mid("library"), (req, res) => {
-   
-//     res.json("all cool in server");
-// })
+app.get("/test", (req, res) => {
+    res.json("all cool in server");
+})
 const PORT = process.env.PORT || 5000;
 //const server = process.env.PORT === "local"?
 //                http.createServer(app):https.createServer(app);
