@@ -4,6 +4,7 @@ const Username = require("../models/username"); // Mongoose model
 const Librarian = require("../models/Librarian"); // Sequelize model
 const Library = require("../models/Library"); // Sequelize model
 const { cloudinary } = require("../config/cloudinary");
+const {deleteFromCloudinary} = require("./cloudDelete")
 
 console.log("Cron job module loaded");
 
@@ -30,13 +31,7 @@ async function runCleanupJob() {
       for (let user of expiredUsers) {
         if (user.profilePicUrl) {
           try {
-            const urlParts = user.profilePicUrl.split("/upload/");
-            const pathWithVersion = urlParts[1];
-            const publicId = pathWithVersion
-              .replace(/^v\d+\//, "")
-              .replace(/\.[^/.]+$/, "");
-            await cloudinary.uploader.destroy(publicId);
-            //console.log(`Deleted Cloudinary image: ${user.profilePicUrl}`);
+            await deleteFromCloudinary(user.profilePicUrl);
           } catch (cloudErr) {
             console.error("Cloudinary delete error:", cloudErr.message);
           }

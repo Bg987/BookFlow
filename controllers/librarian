@@ -47,8 +47,7 @@ exports.addLibrarian = async (req, res) => {
     const usernameRegex = /^[A-Za-z0-9_]+$/;
     if (!usernameRegex.test(username)) {
       return res.status(400).json({
-        message:
-          "Username must contain only letters, numbers, or underscores.",
+        message: "Username must contain only letters, numbers, or underscores.",
       });
     }
     // database validation
@@ -68,8 +67,8 @@ exports.addLibrarian = async (req, res) => {
     const uniqueId = uuidv4();
     Uid = uniqueId;
     // Verification token setup
-    const verificationToken = uuidv4();
-    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000 * 15); // 15 days days
+    const verificationToken = uuidv4(); //24 * 60 * 60 *
+    const verificationExpire = new Date(Date.now() + 1000 * 35); // 15 days days
 
     // Step 1: Insert into MongoDB
     const newUser = await Username.create({
@@ -99,7 +98,12 @@ exports.addLibrarian = async (req, res) => {
 
     const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${verificationToken}`;
     const subject = "BookFlow Librarian Account Created";
-    const mailData = addLibrarianEmail(name, username, randomPassword, verifyLink);
+    const mailData = addLibrarianEmail(
+      name,
+      username,
+      randomPassword,
+      verifyLink
+    );
     console.log(mailData);
     // const x = await sendMail(email, subject, mailData);
     // if (!x) {
@@ -116,6 +120,7 @@ exports.addLibrarian = async (req, res) => {
         await Username.deleteOne({ referenceId: Uid });
         // Delete from SQL
         await Librarian.destroy({ where: { librarian_id: Uid } });
+        //no need to rollabck image upload because that is last so
       } catch (rollbackError) {
         console.error("Rollback failed:", rollbackError);
       }

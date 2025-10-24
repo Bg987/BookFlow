@@ -20,24 +20,30 @@
 //   .catch((error) => {
 //     console.error(error)
 //   })
-const { cloudinary } = require("./config/cloudinary");
+// const { cloudinary } = require("./config/cloudinary");
 
-// Example URL
-const imageUrl =
-  "https://res.cloudinary.com/ddlyq5ies/image/upload/v1760984817/BookFlow/Profile_Pictures/librarians/librarian_07cde39c-fd1d-4389-b5b3-c2fc870dbec5.png";
+// // Example URL
+// const imageUrl =
+//   "https://res.cloudinary.com/ddlyq5ies/image/upload/v1760984817/BookFlow/Profile_Pictures/librarians/librarian_07cde39c-fd1d-4389-b5b3-c2fc870dbec5.png";
 
-// Extract publicId
-const urlParts = imageUrl.split("/upload/");
-const pathWithVersion = urlParts[1];
-const publicId = pathWithVersion
-  .replace(/^v\d+\//, "")
-  .replace(/\.[^/.]+$/, "");
+// // Extract publicId
+// const urlParts = imageUrl.split("/upload/");
+// const pathWithVersion = urlParts[1];
+// const publicId = pathWithVersion
+//   .replace(/^v\d+\//, "")
+//   .replace(/\.[^/.]+$/, "");
 
-(async () => {
-  try {
-    const result = await cloudinary.uploader.destroy(publicId);
-    console.log("Deleted Cloudinary image:", result);
-  } catch (error) {
-    console.error("Error deleting Cloudinary image:", error);
-  }
-})();
+// (async () => {
+//   try {
+//     const result = await cloudinary.uploader.destroy(publicId);
+//     console.log("Deleted Cloudinary image:", result);
+//   } catch (error) {
+//     console.error("Error deleting Cloudinary image:", error);
+//   }
+// })();
+require("dotenv").config();
+
+const { decryptId } = require("./utils/encryption")
+const x =
+  "dd23ae6a03520ba7d4758a7c069f289a:b5f2768a751cf7b9f68e8985248552aa243bc17f0b702d5526748b50bbd53f4e59301b8a14912724a906f346e3498809";
+console.log(decryptId(x));

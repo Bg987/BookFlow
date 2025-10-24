@@ -96,8 +96,8 @@ exports.addLibrary = async (req, res) => {
     Uid = uniqueId;
 
     // Generate verification token
-    const verificationToken = uuidv4(); //
-    const verificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000 * 15); // 15 days
+    const verificationToken = uuidv4(); //24 * 60 * 60 *
+    const verificationExpire = new Date(Date.now() + 1000 * 15); // 15 days
 
     // Step 1: Create in MongoDB (User collection)
     const newUser = await Username.create({

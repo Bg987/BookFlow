@@ -1,5 +1,6 @@
 const Username = require("../models/username");
 const Library = require("../models/Library");
+const Librarian = require("../models/Librarian");
 const { sendMail } = require("../config/mail");
 const { resetPassEmail } = require("../utils/EmailsTemplate");
 const runCleanupJob = require("../utils/cronJobs");
@@ -77,23 +78,33 @@ exports.ResetPassword = async (req, res) => {
       return res
         .status(400)
         .json({ message: "Username and password cannot be the same." });
-    }//role specific validation
-    if (user.role === "library") {
-      const tempLibId = await Library.findOne({
-        //find library name
-        attributes: ["library_name"],
-        where: {
-          lib_id: user.referenceId,
-        },
-      });    
-      if (tempLibId.dataValues.library_name === newPassword) {
-         return res
-           .status(400)
-           .json({
-             message: "Library name cannot match new password.",
-           });
-      }
+    }//role specific validation\
+    const modelMap = {
+      library: Library,
+      librarian: Librarian,
+    };
+    const modelMap2 = {
+      library: "lib_id",
+      librarian: "librarian_id",
+    };
+    const temp1 = {
+      library: "library_name",
+      librarian: "name",
+    };
+    const temp = await modelMap[user.role].findOne({
+      attributes: [temp1[user.role]],
+      where: {
+        [modelMap2[user.role]]: user.referenceId,
+      },
+    });
+    console.log(temp);
+    if (temp && temp.dataValues[temp1[user.role]] === newPassword) {
+      return res.status(400).json({
+        message: "Name cannot match new password.",
+      });
     }
+
+
     // Hash new password and save
     user.password = await bcrypt.hash(newPassword, 10);
 

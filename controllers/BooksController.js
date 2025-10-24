@@ -1,12 +1,14 @@
-// controllers/bookController.js
+const QRCode = require("qrcode");
 const Book = require("../models/Book");
 const Library = require("../models/Library");
-const {uploadToCloudinary} = require("../config/cloudinary");
+const {uploadToCloudinary,cloudinary} = require("../config/cloudinary");
 const Librarian = require("../models/Librarian");
+const {deleteFromCloudinary} = require("../utils/cloudDelete")
+const {encryptId,decryptId} = require("../utils/encryption")
 const { v4: uuidv4 } = require("uuid");
 
 exports.addBook = async (req, res) => {
-  let id;
+  let id,tempUrl,tempUrl2;
   try {
     const {
       title,
@@ -100,11 +102,19 @@ exports.addBook = async (req, res) => {
     const subjectsArray = Array.isArray(subjects)
       ? subjects
       : subjects.split(",").map((s) => s.trim());
-    const uploadResult = await uploadToCloudinary(
+    const imageResult = await uploadToCloudinary(
       cover.buffer,
       "BookFlow/Books",
-      "librarian_");
+      "book_");
     id = uuidv4();
+    const qrBuffer = await QRCode.toBuffer(encryptId(id), { type: "png" });
+    const qrUrl = await uploadToCloudinary(
+          qrBuffer,
+          "BookFlow/QrCodes",
+          "qr_"
+    );
+    tempUrl2 = qrUrl;
+    tempUrl = imageResult;
     // Create and save the new book
     const newBook = new Book({
       librarian_id: req.user.referenceId,
@@ -119,14 +129,15 @@ exports.addBook = async (req, res) => {
       subjects: subjectsArray,
       subject_places,
       description,
-      cover: uploadResult,
+      cover: tempUrl,
       copies,
       isbn,
       library_id: LibId.lib_id,
+      qrCodeUrl: tempUrl2,
     });
     //increase number of books
     await newBook.save();
-        await Library.increment("total_books", {
+    await Library.increment("total_books", {
           by: 1,
           where: { lib_id: LibId.lib_id },
         });
@@ -137,7 +148,9 @@ exports.addBook = async (req, res) => {
     console.error(error);
       try {
         // Delete from MongoDB
-        //rollabck if uncertain condition happen happen
+        //rollabck if uncertain condition happen
+        await deleteFromCloudinary(tempUrl);
+        await deleteFromCloudinary(tempUrl2);
         await Book.deleteOne({ book_id: id });
       } catch (rollbackError) {
         console.error("Rollback failed:", rollbackError);
