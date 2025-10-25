@@ -11,5 +11,5 @@ router.post(
   upload.single("cover"),
   booksController.addBook
 );
-
+router.get("/getBooks", authenticateRole("librarian"), booksController.getBooks);
 module.exports = router;

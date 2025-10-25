@@ -161,7 +161,8 @@ exports.verifyLibrarian = async (req, res) => {
   }
 };
 
-exports.LoginLibrarian = async(req, res) => {
+exports.LoginLibrarian = async (req, res) => {
+  
   await handleLogin({role : "librarian",req, res,});
 }
 
@@ -195,7 +196,6 @@ exports.Librariandata = async (req, res) => {
       librarian_data: cleanedLibrarian,
       userData,
     };
-
     res.status(200).json({ Data:  FinalData});
   }
   catch (error) {

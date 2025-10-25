@@ -158,3 +158,20 @@ exports.addBook = async (req, res) => {
     return res.status(500).json({ message: "Server error", error });
   }
 };
+
+exports.getBooks = async (req, res) => {
+  // Assuming you fetched lib_id using Sequelize
+  const LibData = await Librarian.findOne({
+    attributes: ["lib_id"],
+    where: {
+      librarian_id: req.user.referenceId,
+    },
+    raw: true,
+  });
+
+  if (!LibData) {
+    return res.status(404).json({ message: "Library not found" });
+  }
+  const books = await Book.find({ library_id: LibData.lib_id });
+  res.status(200).json({ books });
+}
