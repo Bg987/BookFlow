@@ -22,14 +22,31 @@ exports.addLibrarian = async (req, res) => {
     if (!name || !dob || !email || !username || !profilePic) {
       return res.status(400).json({ message: "All fields are required" });
     }
-
-    // (Validation code omitted for brevity — keep your existing regex/date checks)
-
+    const nameRegex = /^[A-Za-z\s]{2,}$/;
+    if (!nameRegex.test(name)) {
+      return res.status(400).json({ message: "Name should contain only letters and spaces (minimum 2 characters).", });
+    }
+    const dateOfBirth = new Date(dob);
+    const today = new Date();
+    if (isNaN(dateOfBirth.getTime())) {
+      return res.status(400).json({ message: "Invalid date of birth format." });
+    }
+    if (dateOfBirth > today) {
+      return res.status(400).json({ message: "Date of birth cannot be in the future." });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format." });
+    }
+    const usernameRegex = /^[A-Za-z0-9_]+$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ message: "Username must contain only letters, numbers, or underscores.", });
+    }
     // Database validation
     const usernameExists = await Username.findOne({ username });
     if (usernameExists)
       return res.status(400).json({ message: "Username already taken." });
-
+    
     const emailExists = await Username.findOne({ email });
     if (emailExists)
       return res.status(409).json({ message: "Email already registered" });
