@@ -133,7 +133,6 @@ exports.addLibrary = async (req, res) => {
     });
   } catch (error) {
     console.error("Error adding library:", error);
-
     if (Uid) {
       try {
         await Username.deleteOne({ referenceId: Uid });
@@ -177,6 +176,9 @@ exports.getLibraryData = async (req, res) => {
     }
     if (!data || data.length === 0) {
       return res.status(404).json({ message: "No library data " });
+    }
+    if (data.length === 1) {
+      return res.status(500).json({ message: "Serious Error" });
     }
     res.status(200).json({ data });
   } catch (error) {

@@ -8,7 +8,7 @@ const {encryptId,decryptId} = require("../utils/encryption")
 const { v4: uuidv4 } = require("uuid");
 
 exports.addBook = async (req, res) => {
-  let id,tempUrl,tempUrl2;
+  let id;
   try {
     const {
       title,
@@ -25,97 +25,44 @@ exports.addBook = async (req, res) => {
       isbn,
     } = req.body;
 
-    if (
-      !title ||
-      !authors ||
-      !publishers ||
-      !publish_places ||
-      !number_of_pages ||
-      !subjects ||
-      !subject_places ||
-      !description ||
-      !copies 
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Please provide all required fields." });
+    // Basic validations
+    if (!title || !authors || !publishers || !publish_places || !number_of_pages || !subjects || !subject_places || !description || !copies) {
+      return res.status(400).json({ message: "Please provide all required fields." });
     }
-    //important validations
-    if (number_of_pages <= 0) {
-      return res.status(400).json({ message: "number pages must be positive non zero number" });
-    }
-    if (copies <= 0) {
-      return res
-        .status(400)
-        .json({ message: "number of copies must be positive non zero number"});
+    if (number_of_pages <= 0 || copies <= 0) {
+      return res.status(400).json({ message: "Number of pages and copies must be positive non-zero numbers." });
     }
     const currentYear = new Date().getFullYear();
     if (parseInt(publish_date) > currentYear) {
-      return res
-        .status(400)
-        .json({ message: "Published year cannot be in the future." });
+      return res.status(400).json({ message: "Published year cannot be in the future." });
     }
-    // Validate that a file was uploaded
     if (!req.file) {
       return res.status(400).json({ message: "Cover image is required." });
     }
-
     const cover = req.file;
-    //retrieve library_id  of librarian
+
+    // Retrieve library_id of librarian
     const LibId = await Librarian.findOne({
       attributes: ["lib_id"],
-      where: {
-        librarian_id: req.user.referenceId,
-      },
-      raw: true, 
+      where: { librarian_id: req.user.referenceId },
+      raw: true,
     });
-    if (isbn) {
-      //find duplication based on isbn in library
-      const existingBook = await Book.findOne({
-        isbn,
-        library_id: LibId.lib_id,
-      });
-      if (existingBook) {
-        return res
-          .status(400)
-          .json({ message: "This book already exists in the library." });
-      }
-    } else {
-      //if not isbn then based on other unique data of book in library
-      const existingBookNoISBN = await Book.findOne({
-        title,
-        edition,
-        authors,
-        library_id: LibId.lib_id,
-        isbn: { $exists: false },
-      });
-      if (existingBookNoISBN) {
-        return res
-          .status(400)
-          .json({ message: "This book already exists in the library." });
-      }
-    }
-    const authorsArray = Array.isArray(authors)
-      ? authors
-      : authors.split(",").map((a) => a.trim());
 
-    const subjectsArray = Array.isArray(subjects)
-      ? subjects
-      : subjects.split(",").map((s) => s.trim());
-    const imageResult = await uploadToCloudinary(
-      cover.buffer,
-      "BookFlow/Books",
-      "book_");
+    // Check for duplicate book
+    if (isbn) {
+      const existingBook = await Book.findOne({ isbn, library_id: LibId.lib_id });
+      if (existingBook)
+        return res.status(400).json({ message: "This book already exists in the library." });
+    }
+
+    const authorsArray = Array.isArray(authors) ? authors : authors.split(",").map(a => a.trim());
+    const subjectsArray = Array.isArray(subjects) ? subjects : subjects.split(",").map(s => s.trim());
+
+    // Generate book ID and QR code buffer
     id = uuidv4();
     const qrBuffer = await QRCode.toBuffer(encryptId(id), { type: "png" });
-    const qrUrl = await uploadToCloudinary(
-          qrBuffer,
-          "BookFlow/QrCodes",
-          "qr_"
-    );
-    tempUrl2 = qrUrl;
-    tempUrl = imageResult;
-    // Create and save the new book
+
+    // Create and save book with placeholders for URLs
     const newBook = new Book({
       librarian_id: req.user.referenceId,
       book_id: id,
@@ -129,32 +76,39 @@ exports.addBook = async (req, res) => {
       subjects: subjectsArray,
       subject_places,
       description,
-      cover: tempUrl,
+      cover: "", // will update later
       copies,
       isbn,
       library_id: LibId.lib_id,
-      qrCodeUrl: tempUrl2,
+      qrCodeUrl: "", // will update later
     });
-    //increase number of books
+
     await newBook.save();
-    await Library.increment("total_books", {
-          by: 1,
-          where: { lib_id: LibId.lib_id },
-        });
-    return res
-      .status(201)
-      .json({ message: "Book added successfully!", book: newBook });
+    await Library.increment("total_books", { by: 1, where: { lib_id: LibId.lib_id } });
+    res.status(201).json({ message: "Book added successfully!", book: newBook });
+    // Background async uploads
+    (async () => {
+      try {
+        // Upload cover image
+        const coverUrl = await uploadToCloudinary(cover.buffer, "BookFlow/Books", "book_");
+        // Upload QR code
+        const qrUrl = await uploadToCloudinary(qrBuffer, "BookFlow/QrCodes", "qr_");
+        // Update book document with actual URLs
+        newBook.cover = coverUrl;
+        newBook.qrCodeUrl = qrUrl;
+        await newBook.save();
+      } catch (err) {
+        console.error("Background upload failed:", err);
+      }
+    })();
   } catch (error) {
     console.error(error);
-      try {
-        // Delete from MongoDB
-        //rollabck if uncertain condition happen
-        await deleteFromCloudinary(tempUrl);
-        await deleteFromCloudinary(tempUrl2);
-        await Book.deleteOne({ book_id: id });
-      } catch (rollbackError) {
-        console.error("Rollback failed:", rollbackError);
-      }
+    try {
+      // Rollback in case of failure
+      await Book.deleteOne({ book_id: id });
+    } catch (rollbackError) {
+      console.error("Rollback failed:", rollbackError);
+    }
     return res.status(500).json({ message: "Server error", error });
   }
 };

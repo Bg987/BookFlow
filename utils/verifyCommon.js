@@ -2,7 +2,6 @@ const Username = require("../models/username");
 
 exports.handleVerify = async ({req,res, token }) => { 
     try {
-        console.log(token);
         if (!token) {
             res.status(400).json({ message: "Invalid verification link" });
             return false;

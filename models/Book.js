@@ -27,9 +27,9 @@ const BookSchema = new mongoose.Schema(
     subjects: { type: [String], required: true },
     subject_places: { type: [String], required: true },
     description: { type: String, required: true },
-    cover: { type: String, required: true }, // single image URL
+    cover: { type: String, required: false }, // single image URL
     copies: { type: Number, required: true, default: 1 },
-    qrCodeUrl: { type: String, required: true },
+    qrCodeUrl: { type: String, required: false },
   },
   { timestamps: true }
 );
