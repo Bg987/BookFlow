@@ -1,6 +1,7 @@
 const QRCode = require("qrcode");
 const Book = require("../models/Book");
 const Library = require("../models/Library");
+const BookLog = require("../models/BookLog");
 const {uploadToCloudinary,cloudinary} = require("../config/cloudinary");
 const Librarian = require("../models/Librarian");
 const {deleteFromCloudinary} = require("../utils/cloudDelete")
@@ -84,6 +85,11 @@ exports.addBook = async (req, res) => {
     });
 
     await newBook.save();
+    await BookLog.create({
+      bookId: id,
+      action: "added",
+      performedBy: req.user.referenceId,
+    });
     await Library.increment("total_books", { by: 1, where: { lib_id: LibId.lib_id } });
     res.status(201).json({ message: "Book added successfully!", book: newBook });
     // Background async uploads
@@ -149,7 +155,11 @@ exports.updateBook = async (req, res) => {
     if (!updatedBook) {
       return res.status(404).json({ message: "Book not found" });
     }
-
+    await BookLog.create({
+      bookId: bookId,
+      action: "updated",
+      performedBy: req.user.referenceId,
+    });
     res.status(200).json({
       message: "Book updated successfully",
       data: updatedBook,
