@@ -174,8 +174,8 @@ exports.getLibraryData = async (req, res) => {
         .status(404)
         .json({ message: "serious error contact developer" });
     }
-    if (!data || data.length === 0) {
-      return res.status(404).json({ message: "No library data " });
+    if(!data || data.length === 0) {
+      return res.status(404).json({ message: "No library data error" });
     }
     res.status(200).json({ data });
   } catch (error) {

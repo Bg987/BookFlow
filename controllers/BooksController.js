@@ -129,3 +129,33 @@ exports.getBooks = async (req, res) => {
   const books = await Book.find({ library_id: LibData.lib_id });
   res.status(200).json({ books });
 }
+
+exports.updateBook = async (req, res) => {
+  try {
+    const { bookId } = req.params;
+    const { isbn, copies } = req.body;
+
+    // Validate input
+    if (!isbn && copies === undefined) {
+      return res.status(400).json({ message: "No data provided for update" });
+    }
+
+    const updatedBook = await Book.findOneAndUpdate(
+      { book_id: bookId },
+      { $set: { isbn, copies } },
+      { new: true }
+    );
+
+    if (!updatedBook) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    res.status(200).json({
+      message: "Book updated successfully",
+      data: updatedBook,
+    });
+  } catch (error) {
+    console.error("Error updating book:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};

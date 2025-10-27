@@ -27,7 +27,7 @@ const corsOptions = {
       ? "http://localhost:3000"
       : "https://book-flow-frontend.vercel.app",
   credentials: true, // important for cookies
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"],
 };
 
 app.use(cors(corsOptions));

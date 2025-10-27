@@ -12,4 +12,10 @@ router.post(
   booksController.addBook
 );
 router.get("/getBooks", authenticateRole("librarian"), booksController.getBooks);
+router.patch(
+  "/updateBook/:bookId",
+  authenticateRole("librarian"),
+  booksController.updateBook
+);
+
 module.exports = router;
