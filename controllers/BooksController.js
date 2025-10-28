@@ -120,21 +120,61 @@ exports.addBook = async (req, res) => {
 };
 
 exports.getBooks = async (req, res) => {
-  // Assuming you fetched lib_id using Sequelize
-  const LibData = await Librarian.findOne({
-    attributes: ["lib_id"],
-    where: {
-      librarian_id: req.user.referenceId,
-    },
-    raw: true,
-  });
+  try {
+    const { page = 1, limit = 6, sort = "alphabetical" } = req.query;
+    const LibData = await Librarian.findOne({
+      attributes: ["lib_id"],
+      where: { librarian_id: req.user.referenceId },
+      raw: true,
+    });
 
-  if (!LibData) {
-    return res.status(404).json({ message: "Library not found" });
+    if (!LibData) return res.status(404).json({ message: "Library not found" });
+
+    const filter = { library_id: LibData.lib_id };
+
+    
+    let sortOrder = {};
+    if (sort === "alphabetical") sortOrder = { title: 1 };
+    else if (sort === "date") sortOrder = { createdAt: -1 };
+
+    const skip = (page - 1) * limit;
+    const totalBooks = await Book.countDocuments(filter);
+    const books = await Book.find(filter)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort(sortOrder);
+
+    res.status(200).json({
+      totalBooks,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(totalBooks / limit),
+      books,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching books" });
   }
-  const books = await Book.find({ library_id: LibData.lib_id });
-  res.status(200).json({ books });
-}
+};
+
+exports.getBookDetails = async (req, res) => {
+  try {
+    const { scannedData } = req.params;
+    const book = await Book.findOne({ book_id: decryptId(scannedData) }).lean();
+    if (!book) return res.status(404).json({ message: "Book not found" });
+    const librarian = await Librarian.findOne({
+      where: { librarian_id: book.librarian_id },
+      raw: true,
+    });
+    const library = await Library.findOne({
+      where: { lib_id: book.library_id },
+      raw: true,
+    });
+    res.json({ book, librarian, library });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching book details" });
+  }
+};
 
 exports.updateBook = async (req, res) => {
   try {

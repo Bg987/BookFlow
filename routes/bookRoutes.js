@@ -17,5 +17,9 @@ router.patch(
   authenticateRole("librarian"),
   booksController.updateBook
 );
-
+router.get(
+  "/getBookDetails/:scannedData",
+  authenticateRole("librarian", "library"),
+  booksController.getBookDetails
+);
 module.exports = router;
