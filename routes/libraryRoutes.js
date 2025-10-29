@@ -7,4 +7,9 @@ router.post("/pre-signup", controller.addLibrary);
 router.get("/verify", controller.verifyLibrary);
 router.post("/login", controller.libraryLogin);
 router.get("/libdata", authenticateRole("library"), controller.getLibraryData);
+router.get(
+  "/librariansdata",
+  authenticateRole("library"),
+  controller.getLibrariansData
+);
 module.exports = router;

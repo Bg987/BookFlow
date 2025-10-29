@@ -5,11 +5,15 @@ const bookLogSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  action: {
-      type: String,
-      enum : ["added", "updated", "deleted"],
+  libraryId: {
+    type: String,
     required: true,
-    },
+  },
+  action: {
+    type: String,
+    enum: ["added", "updated", "deleted"],
+    required: true,
+  },
   performedBy: {
     type: String, // or ObjectId if linked to user model
     required: true,

@@ -89,6 +89,7 @@ exports.addBook = async (req, res) => {
       bookId: id,
       action: "added",
       performedBy: req.user.referenceId,
+      libraryId : LibId.lib_id, 
     });
     await Library.increment("total_books", { by: 1, where: { lib_id: LibId.lib_id } });
     res.status(201).json({ message: "Book added successfully!", book: newBook });

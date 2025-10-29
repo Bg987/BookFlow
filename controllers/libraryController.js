@@ -7,6 +7,7 @@ const { handleLogin } = require("../utils/logincommon");
 const { handleVerify } = require("../utils/verifyCommon");
 const Library = require("../models/Library");
 const Username = require("../models/username");
+const Librarian = require("../models/Librarian");
 
 const {
   getVerificationEmail,
@@ -183,3 +184,56 @@ exports.getLibraryData = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+exports.getLibrariansData = async (req, res) => {
+  const lib_id = req.user.referenceId;
+  try {
+    // Fetch librarians from SQL
+    const librarians = await Librarian.findAll({
+      where: { lib_id },
+      raw: true,
+    });
+    if (librarians.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No librarians found for this library." });
+    }
+
+    //  Extract librarian IDs from SQL
+    const librarianIds = librarians.map((lib) => lib.librarian_id);
+
+    const usernames = await Username.find({
+      referenceId: { $in: librarianIds },
+    }).lean();
+
+    // Merge both
+    const mergedData = librarians.map((lib) => {
+      const mongoUser = usernames.find(
+        (user) => user.referenceId === lib.librarian_id
+      );
+      return {
+        librarian_id: lib.librarian_id,
+        lib_id: lib.lib_id,
+        name: lib.name,
+        dob: lib.dob,
+        username: mongoUser?.username || "N/A",
+        email: mongoUser?.email || "N/A",
+        role: mongoUser?.role || "librarian",
+        profilePicUrl: mongoUser?.profilePicUrl || null,
+        is_verified: mongoUser?.is_verified || false,
+        createdAt: mongoUser?.createdAt || null,
+      };
+    });
+    res.status(200).json({
+      success: true,
+      librarians: mergedData,
+    });
+  } catch (err) {
+    console.error("Error fetching librarians:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error fetching librarians",
+      error: err.message,
+    });
+  }
+}
