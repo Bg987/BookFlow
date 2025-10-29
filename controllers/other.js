@@ -1,10 +1,12 @@
 const Username = require("../models/username");
 const Library = require("../models/Library");
 const Librarian = require("../models/Librarian");
+const ActiveSession = require("../models/Active");
 const { sendMail } = require("../config/mail");
 const { resetPassEmail } = require("../utils/EmailsTemplate");
 const runCleanupJob = require("../utils/cronJobs");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
 const CRON_KEY = process.env.CRON_KEY || "my-secret-key";
@@ -132,6 +134,10 @@ exports.cleanData = async (req, res) => {
   }
 }
 exports.logout = async (req, res) => {
+  const token = req.cookies?.token;
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const { id} = decoded;
+  await ActiveSession.deleteOne({userId: id });
     res.clearCookie("token", {
       httpOnly: true,
       secure: process.env.MODE !== "local", // HTTPS in prod

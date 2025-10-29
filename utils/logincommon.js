@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const Username = require("../models/username");
+const ActiveSession = require("../models/Active");
+
 
 exports.handleLogin = async ({req, res,role }) => {
   const { username, password } = req.body;
@@ -37,6 +39,15 @@ exports.handleLogin = async ({req, res,role }) => {
       sameSite: process.env.MODE !== "local" ? "None" : "Strict",
       maxAge: 24 * 60 * 60 * 1000,
     });
+    await ActiveSession.findOneAndUpdate(
+      { userId: user.referenceId },
+      {
+        userId: user.referenceId,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 1 day
+      },
+      { upsert: true }
+    );
     return res.status(200).json({ message: `Successfully logged in redirect to ${user.role} dashboard ` });
   } catch (err) {
     console.error(err);
