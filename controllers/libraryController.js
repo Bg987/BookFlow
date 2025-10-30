@@ -8,6 +8,7 @@ const { handleVerify } = require("../utils/verifyCommon");
 const Library = require("../models/Library");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
+const ActiveSession = require("../models/Active");
 
 const {
   getVerificationEmail,
@@ -178,7 +179,7 @@ exports.getLibraryData = async (req, res) => {
     if(!data || data.length === 0) {
       return res.status(404).json({ message: "No library data error" });
     }
-    res.status(200).json({ data });
+    res.status(200).json({ data, verified: req.user.is_verified });
   } catch (error) {
     console.error("Error fetching library data:", error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -234,6 +235,39 @@ exports.getLibrariansData = async (req, res) => {
       success: false,
       message: "Server error fetching librarians",
       error: err.message,
+    });
+  }
+}
+
+exports.getActiveLibrarianIds = async (req, res) => { 
+  try {
+    const library_id = req.user.referenceId;
+
+    //Fetch all active librarian IDs
+    const activeLibrarians = await ActiveSession.find(
+      { role: "librarian" },
+      "id"
+    );
+    const activeIds = activeLibrarians.map((l) => l.id);
+     //Filter librarians belonging to this library
+   const librarians = await Librarian.findAll({
+     where: {
+       lib_id: library_id,
+       librarian_id: activeIds, // Sequelize auto-converts to IN when array
+     },
+     attributes: ["librarian_id"], // like .select() in Mongoose
+   });
+     //Send only IDs
+    const activeLibrarianIds = librarians.map((l) => l.librarian_id);
+    res.status(200).json({
+      success: true,
+      activeLibrarianIds,
+    });
+  } catch (error) {
+    console.error("Error fetching active librarian IDs:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
     });
   }
 }

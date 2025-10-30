@@ -136,8 +136,14 @@ exports.cleanData = async (req, res) => {
 exports.logout = async (req, res) => {
   const token = req.cookies?.token;
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  const { id} = decoded;
-  await ActiveSession.deleteOne({userId: id });
+  const { id,role} = decoded;
+  await ActiveSession.deleteOne({ id, role });
+  if (global._io) {
+    global._io.emit("activeUpdate", {
+      id,
+      action: "logout",
+    });
+  }
     res.clearCookie("token", {
       httpOnly: true,
       secure: process.env.MODE !== "local", // HTTPS in prod

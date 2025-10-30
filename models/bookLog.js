@@ -15,7 +15,7 @@ const bookLogSchema = new mongoose.Schema({
     required: true,
   },
   performedBy: {
-    type: String, // or ObjectId if linked to user model
+    type: String, 
     required: true,
   },
   performedAt: {

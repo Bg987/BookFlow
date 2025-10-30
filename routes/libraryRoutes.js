@@ -12,4 +12,10 @@ router.get(
   authenticateRole("library"),
   controller.getLibrariansData
 );
+router.get(
+  "/ActivelibrarianIds",
+  authenticateRole("library"),
+  controller.getActiveLibrarianIds
+);
+
 module.exports = router;
