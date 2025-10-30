@@ -1,6 +1,6 @@
 const express = require('express');
 const http = require('http');
-const https = require('https');
+
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const initSocket = require('./config/socket');
@@ -8,11 +8,7 @@ require("dotenv").config();
 const { testDBConnection, connectMongoDB } = require('./config/db');
 const app = express();
 
-const server =
-  process.env.MODE === "local"
-    ? http.createServer(app)
-    : https.createServer(app);
-
+const server = http.createServer(app)
 const corsOptions = {
   origin:
     process.env.MODE === "local"
@@ -55,6 +51,6 @@ initSocket(server, corsOptions);
 server.listen(process.env.PORT || 5000, async () => {
   await testDBConnection();
   await connectMongoDB();
-  
+
   console.log(`Server running`);
 });
