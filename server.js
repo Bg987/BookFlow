@@ -55,5 +55,6 @@ initSocket(server, corsOptions);
 server.listen(process.env.PORT || 5000, async () => {
   await testDBConnection();
   await connectMongoDB();
+  
   console.log(`Server running`);
 });
