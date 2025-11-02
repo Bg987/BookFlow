@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcrypt");
-const {uploadToCloudinary} = require("../config/cloudinary");
+const stream = require("stream");
+const { uploadToCloudinary } = require("../config/cloudinary");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
 const Library = require("../models/Library");
@@ -8,8 +9,10 @@ const { handleLogin } = require("../utils/logincommon");
 const { handleVerify } = require("../utils/verifyCommon");
 const { sendMail } = require("../config/mail");
 const { getSignedUrl } = require("../config/cloudinary");
-const { createUser } = require("../utils/create");
-const {addLibrarianEmail,LibrarianVerifiedHTML} = require("../utils/EmailsTemplate");
+const {
+  addLibrarianEmail,
+  LibrarianVerifiedHTML,
+} = require("../utils/EmailsTemplate");
 
 exports.addLibrarian = async (req, res) => {
   let Uid;
@@ -22,30 +25,76 @@ exports.addLibrarian = async (req, res) => {
     if (!name || !dob || !email || !username || !profilePic) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    const randomPassword = Math.random().toString(36).slice(-8);
-    const { referenceId, tempToken } = await createUser(
-      username,
-      email,
-      randomPassword,
-      "librarian",
-      res,
-    );
-    console.log(referenceId);
-    Uid = referenceId; // for rollback purpose
-    const dateOfBirth = new Date(dob);
-    const currentYear = new Date();
-    if (dateOfBirth > currentYear) {
+    const nameRegex = /^[A-Za-z\s]{2,}$/;
+    if (!nameRegex.test(name)) {
       return res
         .status(400)
-        .json({ message: "Birth Date cannot be in the future." });
+        .json({
+          message:
+            "Name should contain only letters and spaces (minimum 2 characters).",
+        });
     }
+    const dateOfBirth = new Date(dob);
+    const today = new Date();
+    if (isNaN(dateOfBirth.getTime())) {
+      return res.status(400).json({ message: "Invalid date of birth format." });
+    }
+    if (dateOfBirth > today) {
+      return res
+        .status(400)
+        .json({ message: "Date of birth cannot be in the future." });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format." });
+    }
+    const usernameRegex = /^[A-Za-z0-9_]+$/;
+    if (!usernameRegex.test(username)) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Username must contain only letters, numbers, or underscores.",
+        });
+    }
+    // Database validation
+    const usernameExists = await Username.findOne({ username });
+    if (usernameExists)
+      return res.status(400).json({ message: "Username already taken." });
+
+    const emailExists = await Username.findOne({ email });
+    if (emailExists)
+      return res.status(409).json({ message: "Email already registered" });
+
+    // Generate credentials and unique IDs
+    const randomPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+    const uniqueId = uuidv4();
+    Uid = uniqueId;
+
+    // Verification token setup
+    const verificationToken = uuidv4();
+    const verificationExpire = new Date(Date.now() + 1000 * 60 * 60 * 24 * 15); // 15 days
+
+    // Step 1: Insert into MongoDB
+    const newUser = await Username.create({
+      username,
+      email,
+      password: hashedPassword,
+      role: "librarian",
+      referenceId: uniqueId,
+      tempToken: verificationToken,
+      tokenExpire: verificationExpire,
+    });
+
     // Step 2: Insert into SQL
     const newLibrarian = await Librarian.create({
-      librarian_id: referenceId,
+      librarian_id: uniqueId,
       lib_id,
       name,
       dob,
     });
+
     // Step 3: Respond immediately to the client
     res.status(201).json({
       message:
@@ -61,13 +110,11 @@ exports.addLibrarian = async (req, res) => {
           "BookFlow/Profile_Pictures/librarians",
           "librarian_"
         );
-        await Username.updateOne(
-          { referenceId },
-          { $set: { profilePicUrl} }
-        );
+        newUser.profilePicUrl = profilePicUrl;
+        await newUser.save();
 
         // Prepare verification email
-        const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${tempToken}`;
+        const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${verificationToken}`;
         const subject = "BookFlow Librarian Account Created";
         const mailData = addLibrarianEmail(
           name,
@@ -77,7 +124,7 @@ exports.addLibrarian = async (req, res) => {
         );
         console.log(mailData);
         // Send email
-        await sendMail(email, subject, mailData);
+        //await sendMail(email, subject, mailData);
       } catch (err) {
         console.error("Background task failed:", err);
       }
@@ -103,9 +150,9 @@ exports.verifyLibrarian = async (req, res) => {
   try {
     const { token } = req.query;
     const user = await Username.findOne({ tempToken: token });
-    const resVerify = await handleVerify({ req, res, token});
+    const resVerify = await handleVerify({ req, res, token });
     if (!resVerify) {
-      throw error("common verify error");
+      return;
     }
     //find librarian's library id
     const tempLibId = await Librarian.findOne({
@@ -130,9 +177,8 @@ exports.verifyLibrarian = async (req, res) => {
 };
 
 exports.LoginLibrarian = async (req, res) => {
-  
-  await handleLogin({role : "librarian",req, res,});
-}
+  await handleLogin({ role: "librarian", req, res });
+};
 
 exports.Librariandata = async (req, res) => {
   try {
@@ -147,7 +193,7 @@ exports.Librariandata = async (req, res) => {
     userData = req.user;
     userData._id = null;
     userData.password = null;
-    userData.referenceId=null;
+    userData.referenceId = null;
     const cleanedLibrarian = { ...librarian_data.dataValues };
     const cleanedLibrary = { ...library_data.dataValues };
     delete cleanedLibrarian.lib_id;
@@ -156,7 +202,7 @@ exports.Librariandata = async (req, res) => {
     //parse public id from full URL
     const fullUrl = userData.profilePicUrl;
     const urlParts = fullUrl.split("/upload/");
-    const publicIdWithVersion = urlParts[1]; 
+    const publicIdWithVersion = urlParts[1];
     const publicId = publicIdWithVersion.replace(/^v\d+\//, ""); // remove version
     userData.profilePicUrl = getSignedUrl(publicId);
     const FinalData = {
@@ -164,9 +210,8 @@ exports.Librariandata = async (req, res) => {
       librarian_data: cleanedLibrarian,
       userData,
     };
-    res.status(200).json({ Data:  FinalData});
-  }
-  catch (error) {
+    res.status(200).json({ Data: FinalData });
+  } catch (error) {
     console.log(error);
     res.status(500).json({ error });
   }
