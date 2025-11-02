@@ -9,9 +9,9 @@ const Library = sequelize.define(
       primaryKey: true,
     },
     library_name: {
-        field: "name",
+      field: "name",
       type: DataTypes.STRING,
-        allowNull: false,
+      allowNull: false,
     },
     founded_year: {
       type: DataTypes.INTEGER,
@@ -39,8 +39,20 @@ const Library = sequelize.define(
     },
   },
   {
-   tableName: "Libraries",
-    timestamps: false, // since we’re using created_at manually
+    tableName: "Libraries",
+    timestamps: false,
+
+    indexes: [
+      {
+        fields: ["name"], // search by library name faster
+      },
+      {
+        fields: ["latitude", "longitude"], // efficient nearby location queries
+      },
+      {
+        fields: ["founded_year"], // faster filtering by year
+      },
+    ],
   }
 );
 

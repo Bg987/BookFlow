@@ -24,6 +24,18 @@ const Librarian = sequelize.define(
   {
     tableName: "Librarians",
     timestamps: false,
+
+    indexes: [
+      {
+        fields: ["lib_id"], // find all librarians of a library fast
+      },
+      {
+        fields: ["name"], // filter/search librarians by name
+      },
+      {
+        fields: ["dob"], // optional sorting/filtering
+      },
+    ],
   }
 );
 

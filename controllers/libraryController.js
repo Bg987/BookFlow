@@ -9,6 +9,7 @@ const Library = require("../models/Library");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
 const ActiveSession = require("../models/Active");
+const { createUser } = require("../utils/create");
 
 const {
   getVerificationEmail,
@@ -30,42 +31,46 @@ exports.addLibrary = async (req, res) => {
       latitude,
       longitude,
     } = req.body;
+
+    // initial Validation
     if (
       !library_name ||
       !email ||
       !username ||
       !password ||
       !founded_year ||
-      !latitude ||
-      !longitude
+      latitude === undefined ||
+      longitude === undefined
     ) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({ message: "All fields are required." });
     }
-    // validation
+
+    // Create user in Username collection(common for all roles)
+    const { referenceId, tempToken } = await createUser(
+      username,
+      email,
+      password,
+      "library",
+      res,
+    );
+    Uid = referenceId; // for rollback purpose
+
+    //year validation
     const currentYear = new Date().getFullYear();
     if (parseInt(founded_year) > currentYear) {
       return res
         .status(400)
         .json({ message: "Founded year cannot be in the future." });
     }
-    const usernameRegex = /^[A-Za-z0-9_]+$/;
-    if (!usernameRegex.test(username)) {
+
+    //password validation (not same as library name)
+    if (password.toLowerCase() === library_name.toLowerCase()) {
       return res.status(400).json({
-        message: "Username must contain only letters, numbers, or underscores.",
+        message: "Password must not be the same as your library name.",
       });
     }
-    const passwordLower = password.toLowerCase();
-    if (
-      passwordLower === username.toLowerCase() ||
-      passwordLower === library_name.toLowerCase() ||
-      passwordLower === email.toLowerCase().split("@")[0] ||
-      passwordLower === email
-    ) {
-      return res.status(400).json({
-        message:
-          "Password must not be the same as your username, library name, or email.",
-      });
-    }
+
+    //Coordinate validation
     if (
       isNaN(latitude) ||
       isNaN(longitude) ||
@@ -79,62 +84,37 @@ exports.addLibrary = async (req, res) => {
           "Invalid coordinates. Latitude must be between -90 and 90, and longitude between -180 and 180.",
       });
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: "Invalid email format." });
-    }
-    //database validations
-    const existingUsername = await Username.findOne({ username });
-    if (existingUsername)
-      return res
-        .status(400)
-        .json({ message: "Username already taken. Please choose another." });
 
-    const existingEmail = await Username.findOne({ email });
-    if (existingEmail)
-      return res.status(409).json({ message: "Email already registered." });
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const uniqueId = uuidv4();
-    Uid = uniqueId;
-
-    // Generate verification token
-    const verificationToken = uuidv4(); //24 * 60 * 60 *
-    const verificationExpire = new Date(Date.now() + 1000 * 15); // 15 days
-
-    // Step 1: Create in MongoDB (User collection)
-    const newUser = await Username.create({
-      username,
-      email,
-      password: hashedPassword,
-      role: "library",
-      referenceId: uniqueId,
-      tempToken: verificationToken,
-      tokenExpire: verificationExpire,
-    });
-
-    // Step 2: Create in SQL
+    //Create Library entry in SQL
     const newLibrary = await Library.create({
-      lib_id: uniqueId,
+      lib_id: referenceId,
       library_name,
       founded_year,
       latitude,
       longitude,
     });
 
-    // Step 4: Send verification email
-    const verifyLink = `${process.env.BACKEND_URL}/api/library/verify?token=${verificationToken}`;
+    //Send verification email (async)
+    const verifyLink = `${process.env.BACKEND_URL}/api/library/verify?token=${tempToken}`;
     const subject = "BookFlow Library Account Created";
     const mailBody = getVerificationEmail(verifyLink);
     console.log(mailBody);
-    //const resMail = await sendMail(email, subject, mailBody);
-    // if (!resMail) {
-    //   throw new Error("email error");
-    // }
-    res.status(201).json({
+
+    //send email in background for faster response
+    (async () => {
+      try {
+        await sendMail(email, subject, mailBody);
+      } catch (mailErr) {
+        console.error("Email sending failed:", mailErr);
+      }
+    })();
+    return res.status(201).json({
       message: "Library created successfully. Verification email sent.",
     });
   } catch (error) {
     console.error("Error adding library:", error);
+
+    // Rollback if failed at any step
     if (Uid) {
       try {
         await Username.deleteOne({ referenceId: Uid });
@@ -143,10 +123,9 @@ exports.addLibrary = async (req, res) => {
         console.error("Rollback failed:", rollbackError);
       }
     }
-    res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({ message:error });
   }
 };
-
 
 // Step 2: Verify signup (final creation)
 exports.verifyLibrary = async (req, res) => {

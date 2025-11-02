@@ -12,7 +12,11 @@ const server = http.createServer(app)
 const corsOptions = {
   origin:
     process.env.MODE === "local"
-      ? ["http://localhost:3000", "http://192.168.41.47:3000"]
+      ? [
+          "http://localhost:3000",
+          "http://192.168.41.47:3000",
+          "http://10.182.99.47:3000",
+        ]
       : "https://book-flow-frontend.vercel.app",
   credentials: true, //for cookies
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -27,12 +31,14 @@ app.use(cookieParser());
 const libraryRoutes = require("./routes/libraryRoutes");
 const librarianRoutes = require("./routes/librarianRoutes");
 const bookRoutes = require("./routes/bookRoutes");
+const memberRoutes = require("./routes/memberRoutes");
 const otherRoutes = require("./routes/other");
 
 // API Routes
 app.use("/api/library", libraryRoutes);
 app.use("/api/librarian", librarianRoutes);
 app.use("/api/book", bookRoutes);
+//app.use("/api/member", memberRoutes);
 app.use("/api", otherRoutes);
 
 // Error handler

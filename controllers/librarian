@@ -1,6 +1,5 @@
 const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcrypt");
-const stream = require("stream");
 const {uploadToCloudinary} = require("../config/cloudinary");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
@@ -9,6 +8,7 @@ const { handleLogin } = require("../utils/logincommon");
 const { handleVerify } = require("../utils/verifyCommon");
 const { sendMail } = require("../config/mail");
 const { getSignedUrl } = require("../config/cloudinary");
+const { createUser } = require("../utils/create");
 const {addLibrarianEmail,LibrarianVerifiedHTML} = require("../utils/EmailsTemplate");
 
 exports.addLibrarian = async (req, res) => {
@@ -22,64 +22,30 @@ exports.addLibrarian = async (req, res) => {
     if (!name || !dob || !email || !username || !profilePic) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    const nameRegex = /^[A-Za-z\s]{2,}$/;
-    if (!nameRegex.test(name)) {
-      return res.status(400).json({ message: "Name should contain only letters and spaces (minimum 2 characters).", });
-    }
-    const dateOfBirth = new Date(dob);
-    const today = new Date();
-    if (isNaN(dateOfBirth.getTime())) {
-      return res.status(400).json({ message: "Invalid date of birth format." });
-    }
-    if (dateOfBirth > today) {
-      return res.status(400).json({ message: "Date of birth cannot be in the future." });
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: "Invalid email format." });
-    }
-    const usernameRegex = /^[A-Za-z0-9_]+$/;
-    if (!usernameRegex.test(username)) {
-      return res.status(400).json({ message: "Username must contain only letters, numbers, or underscores.", });
-    }
-    // Database validation
-    const usernameExists = await Username.findOne({ username });
-    if (usernameExists)
-      return res.status(400).json({ message: "Username already taken." });
-    
-    const emailExists = await Username.findOne({ email });
-    if (emailExists)
-      return res.status(409).json({ message: "Email already registered" });
-
-    // Generate credentials and unique IDs
     const randomPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(randomPassword, 10);
-    const uniqueId = uuidv4();
-    Uid = uniqueId;
-
-    // Verification token setup
-    const verificationToken = uuidv4();
-    const verificationExpire = new Date(Date.now() + 1000 * 60 * 60 * 24 * 15); // 15 days
-
-    // Step 1: Insert into MongoDB
-    const newUser = await Username.create({
+    const { referenceId, tempToken } = await createUser(
       username,
       email,
-      password: hashedPassword,
-      role: "librarian",
-      referenceId: uniqueId,
-      tempToken: verificationToken,
-      tokenExpire: verificationExpire,
-    });
-
+      randomPassword,
+      "librarian",
+      res,
+    );
+    console.log(referenceId);
+    Uid = referenceId; // for rollback purpose
+    const dateOfBirth = new Date(dob);
+    const currentYear = new Date();
+    if (dateOfBirth > currentYear) {
+      return res
+        .status(400)
+        .json({ message: "Birth Date cannot be in the future." });
+    }
     // Step 2: Insert into SQL
     const newLibrarian = await Librarian.create({
-      librarian_id: uniqueId,
+      librarian_id: referenceId,
       lib_id,
       name,
       dob,
     });
-
     // Step 3: Respond immediately to the client
     res.status(201).json({
       message:
@@ -95,11 +61,13 @@ exports.addLibrarian = async (req, res) => {
           "BookFlow/Profile_Pictures/librarians",
           "librarian_"
         );
-        newUser.profilePicUrl = profilePicUrl;
-        await newUser.save();
+        await Username.updateOne(
+          { referenceId },
+          { $set: { profilePicUrl} }
+        );
 
         // Prepare verification email
-        const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${verificationToken}`;
+        const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${tempToken}`;
         const subject = "BookFlow Librarian Account Created";
         const mailData = addLibrarianEmail(
           name,
@@ -109,7 +77,7 @@ exports.addLibrarian = async (req, res) => {
         );
         console.log(mailData);
         // Send email
-        //await sendMail(email, subject, mailData);
+        await sendMail(email, subject, mailData);
       } catch (err) {
         console.error("Background task failed:", err);
       }
@@ -137,7 +105,7 @@ exports.verifyLibrarian = async (req, res) => {
     const user = await Username.findOne({ tempToken: token });
     const resVerify = await handleVerify({ req, res, token});
     if (!resVerify) {
-      return;
+      throw error("common verify error");
     }
     //find librarian's library id
     const tempLibId = await Librarian.findOne({
