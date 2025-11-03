@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require("uuid");
 const { sendMail } = require("../config/mail");
 const { handleLogin } = require("../utils/logincommon");
 const { handleVerify } = require("../utils/verifyCommon");
+const { rollBackCommon } = require("../utils/rollback");
 const Library = require("../models/Library");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
@@ -122,26 +123,30 @@ exports.addLibrary = async (req, res) => {
     // Step 4: Send verification email
     const verifyLink = `${process.env.BACKEND_URL}/api/library/verify?token=${verificationToken}`;
     const subject = "BookFlow Library Account Created";
-    const mailBody = getVerificationEmail(role= "library",verifyLink);
-    console.log(mailBody);
-    (async () => {
-      try {
-        await sendMail(email, subject, mailBody);
-      } catch (mailErr) {
-        console.error("Email sending failed:", mailErr);
-      }
-    })();
-    res.status(201).json({
+    const mailBody = getVerificationEmail(role = "library", verifyLink);
+    res.status(201).jon({
       message: "Library created successfully. Verification email sent.",
     });
+    console.log(mailBody);
+    // (async () => {
+    //   try {
+    //     //await sendMail(email, subject, mailBody);
+    //   } catch (mailErr) {
+    //     console.error("Email sending failed:", mailErr);
+    //     if (Uid) {
+    //       console.log("Rolling back library (background failure)...");
+    //       const temp = await rollBackCommon(Uid, "library");
+    //       if (!temp) {
+    //         console.log("something wrong in rollback library");
+    //       }
+    //     }}})();
   } catch (error) {
     console.error("Error adding library:", error);
     if (Uid) {
-      try {
-        await Username.deleteOne({ referenceId: Uid });
-        await Library.destroy({ where: { lib_id: Uid } });
-      } catch (rollbackError) {
-        console.error("Rollback failed:", rollbackError);
+      console.log("Rolling back library (main failure)...");
+      const temp = await rollBackCommon(Uid, "library");
+      if (!temp) {
+        console.log("something wrong in rollback library");
       }
     }
     res.status(500).json({ message: "Internal Server Error" });

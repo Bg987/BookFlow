@@ -8,6 +8,7 @@ const { handleLogin } = require("../utils/logincommon");
 const { handleVerify } = require("../utils/verifyCommon");
 const { sendMail } = require("../config/mail");
 const { getSignedUrl } = require("../config/cloudinary");
+const { rollBackCommon } = require("../utils/rollback");
 const {
   addLibrarianEmail,
   AccountverifiedHTML,
@@ -16,14 +17,15 @@ const {
 exports.addLibrarian = async (req, res) => {
   let Uid;
   try {
-    const lib_id = req.user.referenceId; // library referenceId from middleware
+    const lib_id = req.user.referenceId; // Library referenceId from middleware
     const { name, dob, email, username } = req.body;
     const profilePic = req.file;
 
-    // Basic validation
+    //Basic Validation
     if (!name || !dob || !email || !username || !profilePic) {
       return res.status(400).json({ message: "All fields are required" });
     }
+
     const dateOfBirth = new Date(dob);
     const today = new Date();
     if (isNaN(dateOfBirth.getTime())) {
@@ -34,18 +36,21 @@ exports.addLibrarian = async (req, res) => {
         .status(400)
         .json({ message: "Date of birth cannot be in the future." });
     }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format." });
     }
+
     const nameRegex = /^[A-Za-z0-9_]+$/;
     const cleanUsername = username.trim();
     if (!nameRegex.test(cleanUsername)) {
-  return res.status(400).json({
-    message: "Username must contain only letters, numbers, or underscores.",
-  });
-}
-    // Database validation
+      return res.status(400).json({
+        message: "Username must contain only letters, numbers, or underscores.",
+      });
+    }
+
+    //Database Validation
     const usernameExists = await Username.findOne({ username });
     if (usernameExists)
       return res.status(400).json({ message: "Username already taken." });
@@ -54,17 +59,17 @@ exports.addLibrarian = async (req, res) => {
     if (emailExists)
       return res.status(409).json({ message: "Email already registered" });
 
-    // Generate credentials and unique IDs
+    //Generate Credentials
     const randomPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
     const uniqueId = uuidv4();
     Uid = uniqueId;
 
-    // Verification token setup
+    // Verification Setup
     const verificationToken = uuidv4();
     const verificationExpire = new Date(Date.now() + 1000 * 60 * 60 * 24 * 15); // 15 days
 
-    // Step 1: Insert into MongoDB
+    //Insert into MongoDB
     const newUser = await Username.create({
       username,
       email,
@@ -75,7 +80,6 @@ exports.addLibrarian = async (req, res) => {
       tokenExpire: verificationExpire,
     });
 
-    // Step 2: Insert into SQL
     const newLibrarian = await Librarian.create({
       librarian_id: uniqueId,
       lib_id,
@@ -83,13 +87,12 @@ exports.addLibrarian = async (req, res) => {
       dob,
     });
 
-    // Step 3: Respond immediately to the client
     res.status(201).json({
       message:
-        "Librarian added successfully",
+        "Librarian added successfully. Verification email sent",
     });
 
-    // Step 4: Run Cloudinary upload + email in background
+    //Handle Upload + Email in Background to reduce res. time
     (async () => {
       try {
         // Upload profile picture
@@ -100,8 +103,8 @@ exports.addLibrarian = async (req, res) => {
         );
         newUser.profilePicUrl = profilePicUrl;
         await newUser.save();
-
-        // Prepare verification email
+        
+        // Prepare email
         const verifyLink = `${process.env.BACKEND_URL}/api/librarian/verify-librarian?token=${verificationToken}`;
         const subject = "BookFlow Librarian Account Created";
         const mailData = addLibrarianEmail(
@@ -110,27 +113,29 @@ exports.addLibrarian = async (req, res) => {
           randomPassword,
           verifyLink
         );
-        console.log(mailData);
-        // Send email
-        await sendMail(email, subject, mailData);
+        // Send verification email
+       //await sendMail(email, subject, mailData);
       } catch (err) {
-        console.error("Background task failed:", err);
+        console.error("Background error (upload/email):", err.message);
+        if (Uid) {
+          console.log("Rolling back librarian (background failure)...");
+          const temp = await rollBackCommon(Uid, "librarian");
+          if (!temp) {
+            console.log("something wrong in rollback libraian");
+          }
+        }
       }
     })();
   } catch (error) {
+    console.error("Error adding librarian:", error.message);
     if (Uid) {
-      try {
-        // Rollback if something fails before responding
-        await Username.deleteOne({ referenceId: Uid });
-        await Librarian.destroy({ where: { librarian_id: Uid } });
-      } catch (rollbackError) {
-        console.error("Rollback failed:", rollbackError);
+      console.log("Rolling back librarian (main failure)...");
+      const temp = await rollBackCommon(Uid, "librarian");
+      if (!temp) {
+        console.log("something wrong in rollback libraian");
       }
     }
-    console.error("Error in addLibrarian:", error);
-    if (!res.headersSent) {
-      res.status(500).json({ message: "Internal Server Error" });
-    }
+    return res.status(500).json({ message: "Internal Server Error"});
   }
 };
 

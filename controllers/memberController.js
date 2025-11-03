@@ -8,6 +8,7 @@ const bcrypt = require("bcryptjs");
 const { sendMail } = require("../config/mail");
 const { uploadToCloudinary } = require("../config/cloudinary");
 const { v4: uuidv4 } = require("uuid");
+const { rollBackCommon } = require("../utils/rollback");
 const {
   getVerificationEmail,
   AccountverifiedHTML,
@@ -120,27 +121,27 @@ exports.addMember = async (req, res) => {
             const mailBody = getVerificationEmail(role = "member", verifyLink);
             console.log(mailBody);
             // Send email
-            await sendMail(email, subject, mailBody);
+            //await sendMail(email, subject, mailBody);
           } catch (err) {
-              console.error("Background task failed:", err);
-              
+            console.error("Background task failed:", err);
+            if (Uid) {
+              console.log("Rolling back member (background failure)...");
+              const temp = await rollBackCommon(Uid, "member");
+              if (!temp) {
+                console.log("something wrong in rollback libraian");
+              }
+            }
           }
         })();
     }
     catch (error) {
-        if (Uid) {
-              try {
-                // Rollback if something fails before responding
-                await Username.deleteOne({ referenceId: Uid });
-                await Member.destroy({ where: { member_id: Uid } });
-                  console.log("rollabck done");  
-              } catch (rollbackError) {
-                console.error("Rollback failed:", rollbackError);
-              }
-            }
-            console.error("Error in addLibrarian:", error);
-            if (!res.headersSent) {
-              res.status(500).json({ message: "Internal Server Error" });
-            }
-    }
+      if (Uid) {
+        console.log("Rolling back member (main failure)...");
+        const temp = await rollBackCommon(Uid, "member");
+        if (!temp) {
+          console.log("something wrong in rollback libraian");
+          }
+      }     
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 }
