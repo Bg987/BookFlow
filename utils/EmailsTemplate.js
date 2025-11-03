@@ -1,5 +1,4 @@
-
-export const AccountverifiedLibrary = () => {
+export const AccountverifiedHTML = (role) => {
   return `<html>
         <head>
           <meta http-equiv="refresh" content=2;url='${process.env.FRONTEND_URL}'" />
@@ -27,15 +26,15 @@ export const AccountverifiedLibrary = () => {
         </head>
         <body>
           <div class="message">
-            <h1>🎉 Library account verified and created successfully!</h1>
+            <h1>🎉 ${role} account verified successfully!</h1>
             <p>Redirecting to login page...</p>
           </div>
         </body>
       </html>
     `;
 };
-//library account verification
-export const getVerificationEmail = (verifyLink) => {
+//library,member account verification mail
+export const getVerificationEmail = (role,verifyLink) => {
   return `
     <div style="font-family: Arial, sans-serif; text-align: center; background-color: #f8f9fa; padding: 20px;">
       <img src="https://res.cloudinary.com/ddlyq5ies/image/upload/v1760028198/image_tberhd.jpg" 
@@ -44,9 +43,8 @@ export const getVerificationEmail = (verifyLink) => {
 
       <h2 style="color: #333;">Welcome to BookFlow 📚</h2>
       <p style="font-size: 16px; color: #555;">
-        Click the button below to verify your account:
+        Click the button below to verify your ${role} account:
       </p>
-
       <a href="${verifyLink}" target="_blank"
          style="display: inline-block; background: #4CAF50; color: white; 
                 padding: 12px 20px; border-radius: 5px; text-decoration: none; 
@@ -60,29 +58,7 @@ export const getVerificationEmail = (verifyLink) => {
     </div>
   `;
 };
-export const resetPassEmail = (resetLink) => `
-  <div style="font-family: Arial, sans-serif; text-align: center; background-color: #f8f9fa; padding: 20px;">
-    <img src="https://res.cloudinary.com/ddlyq5ies/image/upload/v1760028198/image_tberhd.jpg" 
-         alt="BookFlow Logo"
-         style="width: 120px; height: auto; margin-bottom: 20px; border-radius: 10px;" />
-
-    <h2 style="color: #333;">Reset your BookFlow password 📚</h2>
-    <p style="font-size: 16px; color: #555;">
-      Click the button below to reset your password. This link is valid for 15 minutes.
-    </p>
-
-    <a href="${resetLink}" target="_blank"
-       style="display: inline-block; background: #4CAF50; color: white; 
-              padding: 12px 20px; border-radius: 5px; text-decoration: none; 
-              font-size: 16px; margin: 20px 0;">
-      Reset Password
-    </a>
-
-    <p style="font-size: 14px; color: #777;">
-      If you did not request this, please ignore this email.
-    </p>
-  </div>`;
-
+//librarian verification mail
 export const addLibrarianEmail = (name, username, password, verifyLink) => {
   return `
   <!DOCTYPE html>
@@ -192,42 +168,28 @@ If you did not request this account, please ignore this email.
   `;
 };
 
-export const LibrarianVerifiedHTML = () => {
-  const redirectUrl = process.env.FRONTEND_URL || "http://localhost:3000/login";
+export const resetPassEmail = (resetLink) => `
+  <div style="font-family: Arial, sans-serif; text-align: center; background-color: #f8f9fa; padding: 20px;">
+    <img src="https://res.cloudinary.com/ddlyq5ies/image/upload/v1760028198/image_tberhd.jpg" 
+         alt="BookFlow Logo"
+         style="width: 120px; height: auto; margin-bottom: 20px; border-radius: 10px;" />
 
-  return `
-    <html>
-      <head>
-        <meta http-equiv="refresh" content="2;url=${redirectUrl}" />
-        <title>Librarian Verified</title>
-        <style>
-          body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            background-color: #f0f2f5;
-          }
-          .message {
-            text-align: center;
-            padding: 20px 40px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-          }
-          .message h1 {
-            color: #4BB543; /* green */
-          }
-        </style>
-      </head>
-      <body>
-        <div class="message">
-          <h1>🎉 Librarian verified successfully!</h1>
-          <p>Redirecting to login page...</p>
-        </div>
-      </body>
-    </html>
-  `;
-};
+    <h2 style="color: #333;">Reset your BookFlow password 📚</h2>
+    <p style="font-size: 16px; color: #555;">
+      Click the button below to reset your password. This link is valid for 15 minutes.
+    </p>
+
+    <a href="${resetLink}" target="_blank"
+       style="display: inline-block; background: #4CAF50; color: white; 
+              padding: 12px 20px; border-radius: 5px; text-decoration: none; 
+              font-size: 16px; margin: 20px 0;">
+      Reset Password
+    </a>
+
+    <p style="font-size: 14px; color: #777;">
+      If you did not request this, please ignore this email.
+    </p>
+  </div>`;
+
+
 

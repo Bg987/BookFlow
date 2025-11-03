@@ -10,7 +10,8 @@ const Member = sequelize.define(
     },
     lib_id: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
+      defaultValue: null,
       index: true,
     },
     name: {
@@ -28,10 +29,6 @@ const Member = sequelize.define(
       type: DataTypes.STRING(100),
       allowNull: false,
       index: true,
-    },
-    book_pref: {
-      type: DataTypes.TEXT, // comma-separated genres
-      allowNull: true,
     },
   },
   {

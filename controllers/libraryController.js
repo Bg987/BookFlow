@@ -1,6 +1,4 @@
-const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const cookie = require("cookie-parser");
 const { v4: uuidv4 } = require("uuid");
 const { sendMail } = require("../config/mail");
 const { handleLogin } = require("../utils/logincommon");
@@ -12,7 +10,7 @@ const ActiveSession = require("../models/Active");
 
 const {
   getVerificationEmail,
-  AccountverifiedLibrary,
+  AccountverifiedHTML,
 } = require("../utils/EmailsTemplate");
 
 require("dotenv").config();
@@ -124,15 +122,15 @@ exports.addLibrary = async (req, res) => {
     // Step 4: Send verification email
     const verifyLink = `${process.env.BACKEND_URL}/api/library/verify?token=${verificationToken}`;
     const subject = "BookFlow Library Account Created";
-    const mailBody = getVerificationEmail(verifyLink);
+    const mailBody = getVerificationEmail(role= "library",verifyLink);
     console.log(mailBody);
-    // (async () => {
-    //   try {
-    //     await sendMail(email, subject, mailBody);
-    //   } catch (mailErr) {
-    //     console.error("Email sending failed:", mailErr);
-    //   }
-    // })();
+    (async () => {
+      try {
+        await sendMail(email, subject, mailBody);
+      } catch (mailErr) {
+        console.error("Email sending failed:", mailErr);
+      }
+    })();
     res.status(201).json({
       message: "Library created successfully. Verification email sent.",
     });
@@ -156,7 +154,7 @@ exports.verifyLibrary = async (req, res) => {
     const { token } = req.query;
     const reseVerify = await handleVerify({ req, res, token });
     if (reseVerify) {
-      res.send(AccountverifiedLibrary());
+      res.send(AccountverifiedHTML(role= "library"));
     }
   } catch (error) {
     console.error("Error verifying library:", error);

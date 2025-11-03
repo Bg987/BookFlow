@@ -38,7 +38,7 @@ const otherRoutes = require("./routes/other");
 app.use("/api/library", libraryRoutes);
 app.use("/api/librarian", librarianRoutes);
 app.use("/api/book", bookRoutes);
-//app.use("/api/member", memberRoutes);
+app.use("/api/member", memberRoutes);
 app.use("/api", otherRoutes);
 
 // Error handler

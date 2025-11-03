@@ -1,6 +1,5 @@
 const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcrypt");
-const stream = require("stream");
 const { uploadToCloudinary } = require("../config/cloudinary");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
@@ -11,7 +10,7 @@ const { sendMail } = require("../config/mail");
 const { getSignedUrl } = require("../config/cloudinary");
 const {
   addLibrarianEmail,
-  LibrarianVerifiedHTML,
+  AccountverifiedHTML,
 } = require("../utils/EmailsTemplate");
 
 exports.addLibrarian = async (req, res) => {
@@ -24,15 +23,6 @@ exports.addLibrarian = async (req, res) => {
     // Basic validation
     if (!name || !dob || !email || !username || !profilePic) {
       return res.status(400).json({ message: "All fields are required" });
-    }
-    const nameRegex = /^[A-Za-z\s]{2,}$/;
-    if (!nameRegex.test(name)) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Name should contain only letters and spaces (minimum 2 characters).",
-        });
     }
     const dateOfBirth = new Date(dob);
     const today = new Date();
@@ -48,15 +38,13 @@ exports.addLibrarian = async (req, res) => {
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format." });
     }
-    const usernameRegex = /^[A-Za-z0-9_]+$/;
-    if (!usernameRegex.test(username)) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Username must contain only letters, numbers, or underscores.",
-        });
-    }
+    const nameRegex = /^[A-Za-z0-9_]+$/;
+    const cleanUsername = username.trim();
+    if (!nameRegex.test(cleanUsername)) {
+  return res.status(400).json({
+    message: "Username must contain only letters, numbers, or underscores.",
+  });
+}
     // Database validation
     const usernameExists = await Username.findOne({ username });
     if (usernameExists)
@@ -98,7 +86,7 @@ exports.addLibrarian = async (req, res) => {
     // Step 3: Respond immediately to the client
     res.status(201).json({
       message:
-        "Librarian added successfully. Image upload and email are being processed in background.",
+        "Librarian added successfully",
     });
 
     // Step 4: Run Cloudinary upload + email in background
@@ -124,7 +112,7 @@ exports.addLibrarian = async (req, res) => {
         );
         console.log(mailData);
         // Send email
-        //await sendMail(email, subject, mailData);
+        await sendMail(email, subject, mailData);
       } catch (err) {
         console.error("Background task failed:", err);
       }
@@ -169,7 +157,7 @@ exports.verifyLibrarian = async (req, res) => {
       by: 1,
       where: { lib_id: tempLibId.dataValues.lib_id },
     });
-    res.send(LibrarianVerifiedHTML());
+    res.send(AccountverifiedHTML(role="librarian"));
   } catch (error) {
     console.error("Error verifying librarian:", error);
     res.status(500).json({ message: "Internal Server Error" });
