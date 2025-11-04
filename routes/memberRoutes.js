@@ -6,5 +6,7 @@ const controller = require("../controllers/memberController");
 
 
 router.post("/pre-signup", upload.single("profilePic"), controller.addMember);
+router.get("/verify", controller.verifyMember);
+router.post("/login", controller.memberLogin);
 
 module.exports = router;

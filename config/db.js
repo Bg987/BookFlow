@@ -18,8 +18,6 @@ const sequelize = new Sequelize(process.env.DB_URL, {
 const connectMongoDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URL, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
     });
     console.log(`MongoDB connected:`);
   } catch (error) {

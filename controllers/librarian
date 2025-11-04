@@ -145,7 +145,7 @@ exports.verifyLibrarian = async (req, res) => {
     const user = await Username.findOne({ tempToken: token });
     const resVerify = await handleVerify({ req, res, token });
     if (!resVerify) {
-      return;
+      res.status(500).json({ message: "Internal Server Error" });
     }
     //find librarian's library id
     const tempLibId = await Librarian.findOne({

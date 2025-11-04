@@ -2,6 +2,7 @@ const Library = require("../models/Library");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
 const Member = require("../models/member");
+const { handleVerify } = require("../utils/verifyCommon");
 //const ActiveSession = require("../models/Active");
 
 const bcrypt = require("bcryptjs");
@@ -116,7 +117,7 @@ exports.addMember = async (req, res) => {
             );
             newUser.profilePicUrl = profilePicUrl;
             await newUser.save();
-            const verifyLink = `${process.env.BACKEND_URL}/api/library/verify?token=${verificationToken}`;
+            const verifyLink = `${process.env.BACKEND_URL}/api/member/verify?token=${verificationToken}`;
             const subject = "BookFlow Member Account Created";
             const mailBody = getVerificationEmail(role = "member", verifyLink);
             console.log(mailBody);
@@ -145,3 +146,20 @@ exports.addMember = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+exports.verifyMember = async (req, res) => {
+  try {
+    const { token } = req.query;
+    const reseVerify = await handleVerify({ req, res, token });
+    if (reseVerify) {
+      res.send(AccountverifiedHTML(role= "member"));
+    }
+  } catch (error) {
+    console.error("Error verifying library:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+exports.memberLogin = async (req, res) => {
+  await handleLogin({ role: "member", req, res });
+};

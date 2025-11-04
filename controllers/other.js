@@ -1,6 +1,7 @@
 const Username = require("../models/username");
 const Library = require("../models/Library");
 const Librarian = require("../models/Librarian");
+const Member = require("../models/member");
 const ActiveSession = require("../models/Active");
 const { sendMail } = require("../config/mail");
 const { resetPassEmail } = require("../utils/EmailsTemplate");
@@ -60,7 +61,6 @@ exports.ForgotPassword = async (req, res) => {
 exports.ResetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body; //resettoken
-
     if (!token || !newPassword) {
       return res
         .status(400)
@@ -72,7 +72,6 @@ exports.ResetPassword = async (req, res) => {
       tempToken: hashedToken,
       tokenExpire: { $gt: Date.now() }, // Token not expired
     });
-
     if (!user) {
       return res.status(400).json({ message: "Invalid or expired token" });
     }//common validation 
@@ -84,14 +83,17 @@ exports.ResetPassword = async (req, res) => {
     const modelMap = {
       library: Library,
       librarian: Librarian,
+      member: Member,
     };
     const modelMap2 = {
       library: "lib_id",
       librarian: "librarian_id",
+      member: "member_id",
     };
     const temp1 = {
       library: "library_name",
       librarian: "name",
+      member : "name",
     };
     const temp = await modelMap[user.role].findOne({
       attributes: [temp1[user.role]],
@@ -99,7 +101,7 @@ exports.ResetPassword = async (req, res) => {
         [modelMap2[user.role]]: user.referenceId,
       },
     });
-    console.log(temp);
+
     if (temp && temp.dataValues[temp1[user.role]] === newPassword) {
       return res.status(400).json({
         message: "Name cannot match new password.",
@@ -114,7 +116,10 @@ exports.ResetPassword = async (req, res) => {
     user.tempToken = undefined;
     user.tokenExpire = undefined;
     await user.save();
-    res.status(200).json({ message: "Password reset successful" });
+    res.status(200).json({
+      message: `Password reset successful, Redirect to ${user.role} login`,
+      role: user.role,
+    });
   } catch (error) {
     console.error("Error in ResetPassword:", error);
     res.status(500).json({ message: "Internal Server Error" });
