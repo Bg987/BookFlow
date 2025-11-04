@@ -3,7 +3,7 @@ const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
 const Member = require("../models/member");
 const { handleVerify } = require("../utils/verifyCommon");
-//const ActiveSession = require("../models/Active");
+const { handleLogin } = require("../utils/logincommon");
 
 const bcrypt = require("bcryptjs");
 const { sendMail } = require("../config/mail");
@@ -163,3 +163,29 @@ exports.verifyMember = async (req, res) => {
 exports.memberLogin = async (req, res) => {
   await handleLogin({ role: "member", req, res });
 };
+
+exports.Memberdata = async (req, res) => { 
+  try {
+    let data = {};
+    data.user = req.user;
+    data.user.password = "";
+    const member_data = await Member.findOne({
+      where: { member_id: req.user.referenceId }, //librarin data from sql
+    });
+    if (!member_data) {
+      return res.status(404).json({ message: "No member data found" });
+    }
+    data.member = member_data;
+    if (member_data.dataValues.lib_id) {
+      const library_data = await Library.findOne({
+        where: { lib_id: member_data.dataValues.lib_id },
+      });
+      data.library = library_data;
+    }
+    res.status(200).json({ data});
+  }
+  catch (error) {
+    console.log(error);
+    res.status(500).json({ error });
+  }
+}

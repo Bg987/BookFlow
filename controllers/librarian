@@ -178,20 +178,16 @@ exports.Librariandata = async (req, res) => {
     const librarian_data = await Librarian.findOne({
       where: { librarian_id: req.user.referenceId }, //librarin data from sql
     });
+    if (!librarian_data) {
+      return res.status(404).json({ message: "No librarian data found" });
+    }
     const library_data = await Library.findOne({
       //librariy data from sql
       where: { lib_id: librarian_data.lib_id },
     });
     //remove all the id's and password
-    userData = req.user;
-    userData._id = null;
+    let userData = req.user;
     userData.password = null;
-    userData.referenceId = null;
-    const cleanedLibrarian = { ...librarian_data.dataValues };
-    const cleanedLibrary = { ...library_data.dataValues };
-    delete cleanedLibrarian.lib_id;
-    delete cleanedLibrarian.librarian_id;
-    delete cleanedLibrary.lib_id;
     //parse public id from full URL
     const fullUrl = userData.profilePicUrl;
     const urlParts = fullUrl.split("/upload/");
@@ -199,8 +195,8 @@ exports.Librariandata = async (req, res) => {
     const publicId = publicIdWithVersion.replace(/^v\d+\//, ""); // remove version
     userData.profilePicUrl = getSignedUrl(publicId);
     const FinalData = {
-      library_data: cleanedLibrary,
-      librarian_data: cleanedLibrarian,
+      library_data,
+      librarian_data,
       userData,
     };
     res.status(200).json({ Data: FinalData });
