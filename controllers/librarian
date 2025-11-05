@@ -185,7 +185,7 @@ exports.Librariandata = async (req, res) => {
       //librariy data from sql
       where: { lib_id: librarian_data.lib_id },
     });
-    //remove all the id's and password
+    //remove password
     let userData = req.user;
     userData.password = null;
     //parse public id from full URL

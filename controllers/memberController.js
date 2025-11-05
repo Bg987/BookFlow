@@ -2,6 +2,7 @@ const Library = require("../models/Library");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
 const Member = require("../models/member");
+const { Sequelize } = require("sequelize");
 const { handleVerify } = require("../utils/verifyCommon");
 const { handleLogin } = require("../utils/logincommon");
 
@@ -189,3 +190,60 @@ exports.Memberdata = async (req, res) => {
     res.status(500).json({ error });
   }
 }
+
+exports.GetNearLibs = async (req, res) => {
+  try {
+    const { lat, lon } = req.query;
+
+    if (!lat || !lon) {
+      return res
+        .status(400)
+        .json({ message: "Latitude and longitude required." });
+    }
+
+    // Haversine distance formula in SQL (in kilometers)
+    const distanceFormula = Sequelize.literal(`
+      6371 * acos(
+        cos(radians(${lat})) * cos(radians(latitude)) *
+        cos(radians(longitude) - radians(${lon})) +
+        sin(radians(${lat})) * sin(radians(latitude))
+      )
+    `);
+
+    // Fetch ID, lib_id, name, and computed distance
+    const libraries = await Library.findAll({
+      attributes: [
+        "lib_id",
+        "name",
+        "latitude",
+        "longitude",
+        [distanceFormula, "distance"],
+      ],
+      raw: true,
+    });
+
+    // Filter out invalid distances and sort ascending (nearest first)
+    const filtered = libraries
+      .map((lib) => ({
+        id: lib.id,
+        lib_id: lib.lib_id,
+        name: lib.name,
+        distance: parseFloat(lib.distance),
+        latitude: lib.latitude,
+        longitude: lib.longitude,
+      }))
+      .filter((lib) => !isNaN(lib.distance))
+      .sort((a, b) => a.distance - b.distance);
+
+    res.status(200).json({
+      message: "Nearby libraries fetched successfully",
+      data: filtered,
+    });
+  } catch (error) {
+    console.error("Error in GetNearLibs:", error);
+    res.status(500).json({
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};

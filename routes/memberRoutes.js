@@ -13,5 +13,10 @@ router.get(
   authenticateRole("member"),
   controller.Memberdata
 );
+router.get(
+  "/GetNearLibs",
+  authenticateRole("member"),
+  controller.GetNearLibs
+);
 
 module.exports = router;
