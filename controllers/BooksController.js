@@ -94,20 +94,22 @@ exports.addBook = async (req, res) => {
     await Library.increment("total_books", { by: 1, where: { lib_id: LibId.lib_id } });
     res.status(201).json({ message: "Book added successfully!", book: newBook });
     // Background async uploads
-    (async () => {
-      try {
-        // Upload cover image
-        const coverUrl = await uploadToCloudinary(cover.buffer, "BookFlow/Books", "book_");
-        // Upload QR code
-        const qrUrl = await uploadToCloudinary(qrBuffer, "BookFlow/QrCodes", "qr_");
-        // Update book document with actual URLs
-        newBook.cover = coverUrl;
-        newBook.qrCodeUrl = qrUrl;
-        await newBook.save();
-      } catch (err) {
-        console.error("Background upload failed:", err);
-      }
-    })();
+(async () => {
+  try {
+    // Start both uploads at the same time
+    const [coverUrl, qrUrl] = await Promise.all([
+      uploadToCloudinary(cover.buffer, "BookFlow/Books", "book_"),
+      uploadToCloudinary(qrBuffer, "BookFlow/QrCodes", "qr_"),
+    ]);
+    // Update book document once both complete
+    newBook.cover = coverUrl;
+    newBook.qrCodeUrl = qrUrl;
+    await newBook.save();
+  } catch (err) {
+    console.error("Background upload failed:", err);
+  }
+})();
+
   } catch (error) {
     console.error(error);
     try {

@@ -37,6 +37,14 @@ const Library = sequelize.define(
       type: DataTypes.INTEGER,
       defaultValue: 0,
     },
+    pending_requests: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+    approved_requests: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
   },
   {
     tableName: "Libraries",

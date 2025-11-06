@@ -1,6 +1,7 @@
 const Library = require("../models/Library");
 const Username = require("../models/username");
 const Librarian = require("../models/Librarian");
+const LibraryRequest = require("../models/LibraryRequest");
 const Member = require("../models/member");
 const { Sequelize } = require("sequelize");
 const { handleVerify } = require("../utils/verifyCommon");
@@ -245,5 +246,58 @@ exports.GetNearLibs = async (req, res) => {
       message: "Internal Server Error",
       error: error.message,
     });
+  }
+};
+
+exports.sendRequest = async (req, res) => {
+  try {
+    const { library_id } = req.body;
+    const member_id = req.user.referenceId;
+
+    // Check if member already applied or approved
+    const existing = await LibraryRequest.findOne({
+      where: { member_id, library_id },
+    });
+
+    if (existing && existing.status === "pending") {
+      return res.status(400).json({ message: "Request already pending." });
+    }
+
+    if (existing && existing.status === "approved") {
+      return res.status(400).json({ message: "Already approved." });
+    }
+    //check whether member is already assosiated with library or not
+    const member = await Member.findByPk(member_id);
+    if (member.lib_id) {
+      return res
+        .status(400)
+        .json({ message: "You are already a member of a library." });
+    }
+    // Create new request
+    const newRequest = await LibraryRequest.create({
+      request_id: uuidv4(),
+      member_id,
+      library_id,
+    });
+    // Increment library pending count
+    await Library.increment("pending_requests", {
+      by: 1,
+      where: { lib_id: library_id },
+    });
+    const library = await Library.findOne({ where: { lib_id: library_id } });
+    // Emit counts to library room
+    if (global._io) { 
+      global._io.to(library_id).emit("update-request-count", {
+        pending: library.pending_requests,
+        approved: library.approved_requests,
+      });
+    }
+    res.status(201).json({
+      message: "Membership request sent successfully.",
+      request: newRequest,
+    });
+  } catch (error) {
+    console.error("Error sending membership request:", error);
+    res.status(500).json({ message: "Failed to send membership request." });
   }
 };

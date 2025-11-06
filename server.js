@@ -46,8 +46,10 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
-app.get("/test", (req, res) => {
-    res.json("all cool in server");
+app.get("/test/:temp", (req, res) => {
+  const {temp} = req.params;
+  const q = req.query;
+  res.json({ temp,q });
 })
 
 

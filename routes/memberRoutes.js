@@ -18,5 +18,5 @@ router.get(
   authenticateRole("member"),
   controller.GetNearLibs
 );
-
+router.post("/apply", authenticateRole("member"), controller.sendRequest);
 module.exports = router;
