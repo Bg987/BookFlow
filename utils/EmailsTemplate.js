@@ -192,4 +192,44 @@ export const resetPassEmail = (resetLink) => `
   </div>`;
 
 
+export const generateMembershipHTML = (
+  libraryName,
+  lat,
+  lng,
+  Action,
+  reason,
+) => {
+  const mapLink = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+  if (Action==="approve") {
+    return `
+     <div style="font-family: Arial, sans-serif; text-align: center; background-color: #f8f9fa; padding: 20px;">
+    <img src="https://res.cloudinary.com/ddlyq5ies/image/upload/v1760028198/image_tberhd.jpg" 
+         alt="BookFlow Logo"
+         style="width: 120px; height: auto; margin-bottom: 20px; border-radius: 10px;" />
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+        <h2 style="color: #2e7d32;">🎉 Congratulations</h2>
+        <p>You have been approved as a member of ${libraryName}.</p>
+        <p>We welcome you to our library community. Enjoy exploring books, resources, and events!</p>
+        <a href=${mapLink} target="_blank"> 📍View on Map</a>
+        <p>Happy reading! 📚</p>
+      </div>
+    `;
+  } else if (Action ==="reject") {
+    return `
+     <div style="font-family: Arial, sans-serif; text-align: center; background-color: #f8f9fa; padding: 20px;">
+    <img src="https://res.cloudinary.com/ddlyq5ies/image/upload/v1760028198/image_tberhd.jpg" 
+         alt="BookFlow Logo"
+         style="width: 120px; height: auto; margin-bottom: 20px; border-radius: 10px;" />
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+        <h2 style="color: #c62828;">❌ Membership Request Update</h2>
+        <p>Unfortunately, your membership request to ${libraryName} has been rejected.</p>
+        <p><strong>Reason:</strong> ${reason || "No reason provided"}</p>
+        <a href=${mapLink} target="_blank"> 📍View on Map</a>
+        <p>We hope to see you in the future!</p>
+      </div>
+    `;
+  }
+};
+
 

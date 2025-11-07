@@ -125,7 +125,8 @@ exports.addLibrary = async (req, res) => {
     const subject = "BookFlow Library Account Created";
     const mailBody = getVerificationEmail(role = "library", verifyLink);
     res.status(201).jon({
-      message: "Library created successfully. Verification email sent.",
+      message:
+        "Library created successfully. Verification email sent. Verify Account Then you can login",
     });
     console.log(mailBody);
     // (async () => {

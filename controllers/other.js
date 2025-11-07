@@ -1,6 +1,7 @@
 const Username = require("../models/username");
 const Library = require("../models/Library");
 const Librarian = require("../models/Librarian");
+const LibraryRequest = require("../models/LibraryRequest");
 const Member = require("../models/member");
 const ActiveSession = require("../models/Active");
 const { sendMail } = require("../config/mail");
@@ -9,6 +10,7 @@ const runCleanupJob = require("../utils/cronJobs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { generateMembershipHTML }=require("../utils/EmailsTemplate");
 
 const CRON_KEY = process.env.CRON_KEY || "my-secret-key";
 
@@ -157,29 +159,135 @@ exports.logout = async (req, res) => {
     res.status(200).json({ message: "Logged out successfully" });
 }
   
+exports.getPendingRequests = async (req, res) => {
+  try {
+    const { library_id } = req.params;
+
+    // Get all pending requests of this library
+    const pendingRequests = await LibraryRequest.findAll({
+      where: { library_id, status: "pending" },
+      attributes: ["request_id", "member_id", "createdAt"],
+      order: [["createdAt", "DESC"]],
+    });
+
+    if (!pendingRequests.length) {
+      return res.status(200).json({
+        success: true,
+        message: "No pending membership requests found.",
+        data: [],
+      });
+    }
+
+    //Get all member IDs
+    const memberIds = pendingRequests.map((req) => req.member_id);
+
+    //Fetch all member data from SQL
+    const members = await Member.findAll({
+      where: { member_id: memberIds },
+    });
+
+    // Fetch all usernames from MongoDB where referenceId matches member_id
+    const usernames = await Username.find({
+      referenceId: { $in: memberIds },
+    }).lean();
+
+    // Step 5: Combine all data
+    const result = pendingRequests.map((req) => {
+      const member = members.find((m) => m.member_id === req.member_id);
+      const user = usernames.find((u) => u.referenceId === req.member_id);
+
+      return {
+        request_id: req.request_id,
+        member_id: req.member_id,
+        requested_on: req.createdAt,
+        member_name: member ? member.name : "N/A",
+        member_city: member ? member.city : "N/A",
+        member_dob: member ? member.dob : "N/A",
+        email: user ? user.email : "N/A",
+        username: user ? user.username : "N/A",
+        profilePicUrl: user ? user.profilePicUrl : null,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error fetching pending requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching pending requests.",
+      error: error.message,
+    });
+  }
+};
+
 exports.handleRequestAction = async (req, res) => {
   try {
     const { requestId, action, reason } = req.body; // action: "approve" | "reject"
     const actorId = req.user.referenceId; // library or librarian ID
-    const request = await LibraryRequest.findByPk(requestId);
 
+    // Validate inputs
+    if (!requestId || !action)
+      return res.status(400).json({
+        message: "Incomplete data: requestId and action are required",
+      });
+
+    if (!["approve", "reject"].includes(action))
+      return res
+        .status(400)
+        .json({ message: "Invalid action. Use 'approve' or 'reject'." });
+
+    const request = await LibraryRequest.findByPk(requestId);
     if (!request) return res.status(404).json({ message: "Request not found" });
 
-    if (request.status !== "pending")
-      return res.status(400).json({ message: "Request already handled" });
+    //check whether member is exist or not whose this membership request
+    const memberUser = await Username.findOne({
+      referenceId: request.member_id,
+    });
+    if (!memberUser) {
+      return res.status(404).json({
+        message: "Member not found",
+      });
+    }
+    const memberEmail = memberUser?.email || null;
+    //console.log(memberEmail);
 
-    request.status = action === "approve" ? "approved" : "rejected";
-    request.action_by = actorId;
-    if (action === "reject") request.reason = reason || "No reason provided";
-    await request.save();
+    // Librarian authorization check (belongs to same library)
+    if (req.user.role === "librarian") {
+      const librarian = await Librarian.findOne({
+        attributes: ["lib_id"],
+        where: { librarian_id: req.user.referenceId },
+      });
+      if (!librarian)
+        return res.status(404).json({ message: "Librarian not found" });
+      if (librarian.lib_id !== request.library_id)
+        return res
+          .status(403)
+          .json({ message: "Unauthorized: You are not part of this library" });
+    }
 
+    //  Get library
     const library = await Library.findOne({
       where: { lib_id: request.library_id },
     });
-
     if (!library) return res.status(404).json({ message: "Library not found" });
+    console.log(library.latitude);
+    //  Reject must have reason
+    if (action === "reject" && (!reason || reason.trim() === "")) {
+      return res
+        .status(400)
+        .json({ message: "Reason is required when rejecting a request" });
+    }
 
-    // Update counts
+    //  Update request
+    request.status = action === "approve" ? "approved" : "rejected";
+    request.action_by = actorId;
+    request.reason = reason;
+
+    // Update library counters
     if (action === "approve") {
       library.total_members += 1;
       library.pending_requests -= 1;
@@ -187,9 +295,11 @@ exports.handleRequestAction = async (req, res) => {
       library.rejected_requests += 1;
       library.pending_requests -= 1;
     }
-    await library.save();
 
-    // Real-time update using Socket.IO
+    // Save both in parallel
+    await Promise.all([request.save(), library.save()]);
+
+    //  Real-time update via Socket.IO
     if (global._io) {
       global._io.to(request.library_id).emit("update-request-count", {
         total: library.total_members,
@@ -197,20 +307,8 @@ exports.handleRequestAction = async (req, res) => {
         rejected: library.rejected_requests,
       });
     }
-
-    // Email notification
-    // const emailSubject =
-    //   action === "approve"
-    //     ? "Your library request has been approved!"
-    //     : "Your library request has been rejected";
-    // const emailBody =
-    //   action === "approve"
-    //     ? `🎉 Congratulations! Your membership request to library ${library.library_name} has been approved.`
-    //     : `❌ Unfortunately, your membership request to library ${library.library_name} has been rejected.\nReason: ${reason}`;
-
-    // await sendEmail(request.member_id, emailSubject, emailBody);
-
-    return res.json({
+    res.status(200).json({
+      success: true,
       message: `Request ${action}ed successfully`,
       updatedCounts: {
         total_members: library.total_members,
@@ -218,9 +316,21 @@ exports.handleRequestAction = async (req, res) => {
         rejected_requests: library.rejected_requests,
       },
     });
+    // (async () => {
+    //       const emailBody = generateMembershipHTML(
+    //         library.library_name,
+    //         library.latitude,
+    //         library.longitude,
+    //         action,
+    //         reason
+    //       );
+    //     const subject = "Library Membership Response";
+    //     console.log(emailBody);
+    //     const resT = await sendMail(memberEmail, subject, emailBody);
+    //     if (!resT) console.log("error in email");
+    //     })();
   } catch (error) {
     console.error("Error handling request:", error);
-    res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
-

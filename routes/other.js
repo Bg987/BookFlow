@@ -5,6 +5,7 @@ const {
   ResetPassword,
   cleanData,
   handleRequestAction,
+  getPendingRequests,
 } = require("../controllers/other");
 const authenticateRole = require("../middlewares/authenticateRoleMiddleware");
 const router = express.Router();
@@ -17,6 +18,11 @@ router.put(
   "/handleRequestAction",
   authenticateRole("librarian", "library"),
   handleRequestAction
+);
+router.get(
+  "/getPending/:library_id",
+  authenticateRole("librarian", "library"),
+  getPendingRequests
 );
 module.exports = router;
 

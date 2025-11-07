@@ -31,7 +31,7 @@ exports.addMember = async (req, res) => {
           !city ||
           !profilePic
         ) {
-          return res.status(400).json({ message: "Aklklll fields are required" });
+          return res.status(400).json({ message: "All fields are required" });
         }
         const usernameRegex = /^[A-Za-z0-9_]+$/;
         if (!usernameRegex.test(username)) {
@@ -106,7 +106,7 @@ exports.addMember = async (req, res) => {
 
         res.status(201).json({
           message:
-            "Member Created successfully,Verification Link send to registered email",
+            "Member Created successfully,Verification Link send to registered email. Verify Account Then you can login",
         });
         // Step 4: Run Cloudinary upload + email in background
         (async () => {

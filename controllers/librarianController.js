@@ -89,7 +89,7 @@ exports.addLibrarian = async (req, res) => {
 
     res.status(201).json({
       message:
-        "Librarian added successfully. Verification email sent",
+        "Librarian added successfully. Verification email sent. Verify Account Then you can login",
     });
 
     //Handle Upload + Email in Background to reduce res. time
@@ -113,8 +113,9 @@ exports.addLibrarian = async (req, res) => {
           randomPassword,
           verifyLink
         );
+        console.log(mailData);
         // Send verification email
-       //await sendMail(email, subject, mailData);
+       //await sendMail(email, subject, mailDdata);
       } catch (err) {
         console.error("Background error (upload/email):", err.message);
         if (Uid) {
