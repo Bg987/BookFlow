@@ -178,11 +178,19 @@ exports.Memberdata = async (req, res) => {
       return res.status(404).json({ message: "No member data found" });
     }
     data.member = member_data;
+//check assosiate to any library or not
     if (member_data.dataValues.lib_id) {
       const library_data = await Library.findOne({
         where: { lib_id: member_data.dataValues.lib_id },
       });
       data.library = library_data;
+    }
+//if not assosiate then check any req. for membership or not 
+    else {
+      const req = await LibraryRequest.findOne({
+        where: { member_id: member_data.dataValues.member_id },
+      });
+      if(req) data.libMsg = "Request send to Library for approvel";
     }
     res.status(200).json({ data});
   }
@@ -286,10 +294,11 @@ exports.sendRequest = async (req, res) => {
     });
     const library = await Library.findOne({ where: { lib_id: library_id } });
     // Emit counts to library room
-    if (global._io) { 
+    if (global._io) {
       global._io.to(library_id).emit("update-request-count", {
+        total: library.total_members,
         pending: library.pending_requests,
-        approved: library.approved_requests,
+        approved: library.rejected_requests,
       });
     }
     res.status(201).json({

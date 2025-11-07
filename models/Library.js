@@ -41,10 +41,10 @@ const Library = sequelize.define(
       type: DataTypes.INTEGER,
       defaultValue: 0,
     },
-    approved_requests: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
-    },
+    rejected_requests: {
+  type: DataTypes.INTEGER,
+  defaultValue: 0,
+},
   },
   {
     tableName: "Libraries",

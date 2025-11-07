@@ -155,5 +155,72 @@ exports.logout = async (req, res) => {
       sameSite: process.env.MODE !== "local" ? "None" : "Strict", // match original cookie
     });
     res.status(200).json({ message: "Logged out successfully" });
+}
+  
+exports.handleRequestAction = async (req, res) => {
+  try {
+    const { requestId, action, reason } = req.body; // action: "approve" | "reject"
+    const actorId = req.user.referenceId; // library or librarian ID
+    const request = await LibraryRequest.findByPk(requestId);
+
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    if (request.status !== "pending")
+      return res.status(400).json({ message: "Request already handled" });
+
+    request.status = action === "approve" ? "approved" : "rejected";
+    request.action_by = actorId;
+    if (action === "reject") request.reason = reason || "No reason provided";
+    await request.save();
+
+    const library = await Library.findOne({
+      where: { lib_id: request.library_id },
+    });
+
+    if (!library) return res.status(404).json({ message: "Library not found" });
+
+    // Update counts
+    if (action === "approve") {
+      library.total_members += 1;
+      library.pending_requests -= 1;
+    } else if (action === "reject") {
+      library.rejected_requests += 1;
+      library.pending_requests -= 1;
+    }
+    await library.save();
+
+    // Real-time update using Socket.IO
+    if (global._io) {
+      global._io.to(request.library_id).emit("update-request-count", {
+        total: library.total_members,
+        pending: library.pending_requests,
+        rejected: library.rejected_requests,
+      });
+    }
+
+    // Email notification
+    // const emailSubject =
+    //   action === "approve"
+    //     ? "Your library request has been approved!"
+    //     : "Your library request has been rejected";
+    // const emailBody =
+    //   action === "approve"
+    //     ? `🎉 Congratulations! Your membership request to library ${library.library_name} has been approved.`
+    //     : `❌ Unfortunately, your membership request to library ${library.library_name} has been rejected.\nReason: ${reason}`;
+
+    // await sendEmail(request.member_id, emailSubject, emailBody);
+
+    return res.json({
+      message: `Request ${action}ed successfully`,
+      updatedCounts: {
+        total_members: library.total_members,
+        pending_requests: library.pending_requests,
+        rejected_requests: library.rejected_requests,
+      },
+    });
+  } catch (error) {
+    console.error("Error handling request:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
+};
 

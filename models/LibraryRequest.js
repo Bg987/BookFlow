@@ -1,3 +1,4 @@
+// models/LibraryRequest.js
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/db");
 
@@ -20,6 +21,14 @@ const LibraryRequest = sequelize.define(
       type: DataTypes.ENUM("pending", "approved", "rejected"),
       defaultValue: "pending",
     },
+    action_by: {
+      type: DataTypes.STRING, // stores id of librarian or library who handled the request
+      allowNull: true,
+    },
+    reason: {
+      type: DataTypes.STRING,
+      allowNull: true, // for rejection reason
+    },
     createdAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
@@ -36,7 +45,7 @@ const LibraryRequest = sequelize.define(
         fields: ["library_id"],
       },
     ],
-    }
+  }
 );
-  
+
 module.exports = LibraryRequest;
